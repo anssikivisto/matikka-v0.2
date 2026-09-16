@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ROBO Math!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --canvas: #0F172A;
+    --panel: #1E293B;
+    --ink: #F8FAFC;
+    --neon-blue: #38BDF8;
+    --neon-green: #4ADE80;
+    --neon-purple: #C084FC;
+    --neon-yellow: #FACC15;
+    --neon-pink: #F472B6;
+    --border-glow: 0 0 12px rgba(56, 189, 248, 0.35);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; font-family: 'Fredoka', system-ui, sans-serif; color: var(--ink);
+    background-color: var(--canvas);
+    background-image: 
+      linear-gradient(rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
+    background-size: 30px 30px;
+    min-height: 100vh; overscroll-behavior: none; user-select: none;
+  }
+  .tech-font { font-family: 'Chakra Petch', sans-serif; letter-spacing: 1px; }
+  header {
+    position: sticky; top: 0; z-index: 50; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px);
+    border-bottom: 3px solid var(--neon-blue); box-shadow: var(--border-glow);
+    border-radius: 0 0 20px 20px;
+  }
+  .hbar { max-width: 960px; margin: 0 auto; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; align-items: center; }
+  
+  .btn {
+    border: 3px solid var(--neon-blue); border-bottom-width: 6px; border-radius: 16px; cursor: pointer;
+    background: var(--panel); color: var(--ink);
+    transition: transform .08s ease, border-bottom-width .08s ease, background-color .15s, box-shadow .15s;
+    font-family: 'Chakra Petch', sans-serif; font-weight: 700;
+  }
+  .btn:hover { box-shadow: var(--border-glow); }
+  .btn:active { transform: translateY(3px); border-bottom-width: 3px; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  
+  /* KIRKKAAT NEON-PALAUTETYYLIT (OHITTAVAT HIMMENNYKSEN) */
+  .correct-btn {
+    background-color: #00E676 !important;
+    border-color: #00FF66 !important;
+    color: #000000 !important;
+    box-shadow: 0 0 25px #00FF66, inset 0 0 10px #00FF66 !important;
+    opacity: 1 !important;
+  }
+  .wrong-btn {
+    background-color: #FF1744 !important;
+    border-color: #FF5252 !important;
+    color: #FFFFFF !important;
+    box-shadow: 0 0 25px #FF1744, inset 0 0 10px #FF1744 !important;
+    opacity: 1 !important;
+  }
+  .no-clicks { pointer-events: none; }
+
+  .grid { display: grid; gap: 16px; width: 100%; }
+  .pop { animation: pop .35s cubic-bezier(.34,1.56,.64,1) both; }
+  .fade { animation: fade .35s ease-out both; }
+  .bounce { animation: bounce 2s ease-in-out infinite; }
+  .shake { animation: shake .4s ease-in-out; }
+
+  @keyframes pop { 0%{transform:scale(.6);opacity:0} 60%{transform:scale(1.1);opacity:1} 100%{transform:scale(1)} }
+  @keyframes fade { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+
+  .robo-avatar { display: inline-block; filter: drop-shadow(0 0 10px rgba(56,189,248,0.5)); }
+
+  /* SUBITISAATIO-KUVIOIDEN TYYLIT */
+  .dice-grid {
+    display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(3, 34px);
+    gap: 8px; background: #090D16; border: 3px solid var(--neon-blue); padding: 12px; border-radius: 18px;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.8), var(--border-glow);
+  }
+  .dice-cell { display: flex; align-items: center; justify-content: center; }
+  .dice-dot {
+    width: 24px; height: 24px; background: radial-gradient(circle at 30% 30%, #38BDF8, #0284C7);
+    border-radius: 50%; box-shadow: 0 0 10px var(--neon-blue); animation: pop .2s ease-out;
+  }
+
+  .tenframe-grid {
+    display: grid; grid-template-columns: repeat(5, 42px); grid-template-rows: repeat(2, 42px);
+    gap: 8px; background: #090D16; border: 3px solid var(--neon-green); padding: 12px; border-radius: 18px;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 12px rgba(74,222,128,0.3);
+  }
+  .tf-cell { border: 2px dashed #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .tf-dot {
+    width: 30px; height: 30px; background: radial-gradient(circle at 30% 30%, #4ADE80, #15803D);
+    border-radius: 50%; box-shadow: 0 0 10px var(--neon-green); animation: pop .2s ease-out;
+  }
+
+  .num-input {
+    width: 110px; height: 60px; font-size: 32px; text-align: center; font-weight: 700;
+    border: 3px solid var(--neon-green); border-radius: 16px; background: #090D16; color: var(--ink);
+    outline: none; box-shadow: 0 0 10px rgba(74,222,128,0.2);
+  }
+  .num-input:focus { border-color: var(--neon-yellow); box-shadow: 0 0 15px rgba(250,204,21,0.4); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* ============================ MASCOT ============================ */
+function getRoboSVG(size = 80) {
+  return `<svg class="robo-avatar bounce" width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="30" y="10" width="40" height="12" rx="4" fill="#0EA5E9"/>
+    <circle cx="50" cy="8" r="5" fill="#FACC15"/>
+    <rect x="20" y="24" width="60" height="46" rx="12" fill="#1E293B" stroke="#38BDF8" stroke-width="4"/>
+    <circle cx="38" cy="42" r="8" fill="#38BDF8"/>
+    <circle cx="62" cy="42" r="8" fill="#38BDF8"/>
+    <circle cx="38" cy="42" r="3" fill="#FFF"/>
+    <circle cx="62" cy="42" r="3" fill="#FFF"/>
+    <path d="M 38 58 Q 50 66 62 58" stroke="#4ADE80" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <rect x="10" y="36" width="8" height="20" rx="3" fill="#38BDF8"/>
+    <rect x="82" y="36" width="8" height="20" rx="3" fill="#38BDF8"/>
+    <rect x="28" y="74" width="44" height="18" rx="6" fill="#334155" stroke="#38BDF8" stroke-width="3"/>
+  </svg>`;
+}
+
+function mascot(msg) {
+  return `<div style="display:flex;align-items:center;gap:14px;justify-content:center;margin:8px 0">
+    ${getRoboSVG(75)}
+    ${msg ? `<div style="background:#1E293B;border:3px solid var(--neon-blue);box-shadow:var(--border-glow);border-radius:16px;padding:12px 18px;font-weight:600;color:var(--ink);max-width:440px">${esc(msg)}</div>` : ''}
+  </div>`;
+}
+
+/* ============================ DATA STRUCTURE ============================ */
+const CATEGORIES = [
+  // --- 1. LUOKKA ---
+  { id: "g1_luvut", grade: 1, title: "1. Subitisaatio (Robotin Skanneri)", desc: "Tunnista lukumäärä heti ilman laskemista", emoji: "⚡", color: "#38BDF8" },
+  { id: "g1_kympit", grade: 1, title: "2. Kymppiparit & Hajotelmat", desc: "Täydennä luku kymmeneksi", emoji: "🔟", color: "#4ADE80" },
+  { id: "g1_laskut", grade: 1, title: "3. Yhteen- ja vähennyslasku", desc: "Peruslaskut ja puuttuvat luvut (0–20)", emoji: "➕", color: "#C084FC" },
+  { id: "g1_geometria", grade: 1, title: "4. Geometria & Kello", desc: "2D-muodot, suunnat ja tasatunnit", emoji: "📐", color: "#FACC15" },
+
+  // --- 2. LUOKKA ---
+  { id: "g2_luvut", grade: 2, title: "1. Luvut & Kymmenjärjestelmä", desc: "Lukualue 0–100, kymmenet (K) ja ykköset (Y)", emoji: "💯", color: "#38BDF8" },
+  { id: "g2_laskut", grade: 2, title: "2. Yhteen- ja vähennyslasku", desc: "Kymmenylitys ja 2-numeroiset laskut", emoji: "➕", color: "#4ADE80" },
+  { id: "g2_kerto", grade: 2, title: "3. Kertolasku & Murtoluvut", desc: "Kertotaulut (2, 4, 5, 10) ja puolikkaat", emoji: "✖️", color: "#EC4899" },
+  { id: "g2_geometria", grade: 2, title: "4. Geometria & Mittaaminen", desc: "3D-kappaleet, yksiköt (cm, m, kg, l) & kello", emoji: "📦", color: "#C084FC" }
+];
+
+const DIFFICULTIES = [
+  { id: 1, label: "Helppo", emoji: "⭐", color: "#4ADE80", desc: "Noppakuviot (1–6) | Monivalinta (5 tehtävää)" },
+  { id: 2, label: "Keskitaso", emoji: "⭐⭐", color: "#FACC15", desc: "Kymmenruudukko (1–10) | Numerosyöte (5 tehtävää)" },
+  { id: 3, label: "Haastava", emoji: "⭐⭐⭐", color: "#EC4899", desc: "Salama-skanneri (1–10) | 3 sekunnin vilautus (10 tehtävää)" }
+];
+
+/* ============================ AUDIO ============================ */
+let _ctx = null;
+function ac() { try { if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)(); if (_ctx.state === "suspended") _ctx.resume(); return _ctx; } catch (e) { return null; } }
+function tone(f, st, d, type, g) {
+  const c = ac(); if (!c) return;
+  const o = c.createOscillator(), ga = c.createGain();
+  o.type = type || "sine"; o.frequency.setValueAtTime(f, c.currentTime + st);
+  ga.gain.setValueAtTime(1e-4, c.currentTime + st);
+  ga.gain.exponentialRampToValueAtTime(g || 0.18, c.currentTime + st + .02);
+  ga.gain.exponentialRampToValueAtTime(1e-4, c.currentTime + st + d);
+  o.connect(ga); ga.connect(c.destination);
+  o.start(c.currentTime + st); o.stop(c.currentTime + st + d + .02);
+}
+
+function playCorrect() { tone(523, 0, .1, "square"); tone(659, .08, .1, "square"); tone(783, .16, .2, "square"); }
+function playTry() { tone(220, 0, .15, "sawtooth", .25); tone(180, .1, .2, "sawtooth", .25); }
+function playStar() { tone(880, 0, .1, "sine"); tone(1760, .1, .25, "sine"); }
+
+/* ============================ STORAGE ============================ */
+const PKEY = "robomath_progress";
+let prog = load(PKEY, { stars: 0 });
+function load(k, def) { try { return { ...def, ...JSON.parse(localStorage.getItem(k) || "{}") }; } catch (e) { return { ...def }; } }
+function saveProg() { localStorage.setItem(PKEY, JSON.stringify(prog)); }
+function addStars(n) { prog.stars += n; saveProg(); renderHeader(); }
+
+/* ============================ STATE ============================ */
+const S = {
+  screen: "menu",
+  grade: null,
+  category: null,
+  difficulty: null,
+  roundStars: 0,
+  totalRounds: 5
+};
+
+const root = document.getElementById("root");
+
+function go(screen) { S.screen = screen; render(); }
+function selectGrade(g) { S.grade = g; go("categories"); }
+function selectCategory(cat) { S.category = cat; go("difficulties"); }
+function selectDifficulty(diff) { S.difficulty = diff; S.roundStars = 0; go("game"); }
+
+function handleBack() {
+  if (S.screen === "categories") go("menu");
+  else if (S.screen === "difficulties") go("categories");
+  else if (S.screen === "game") go("difficulties");
+  else if (S.screen === "complete") go("categories");
+  else if (S.screen === "stickers") go("menu");
+}
+
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function shuffle(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function renderHeader() {
+  const el = document.getElementById("starcount");
+  if (el) el.textContent = prog.stars;
+}
+
+/* ============================ RENDERER ============================ */
+function render() {
+  window.scrollTo(0, 0);
+  const canBack = S.screen !== "menu";
+  
+  let headerTitle = "ROBO Math!";
+  if (S.screen === "categories") headerTitle = `${S.grade}. luokka`;
+  else if (S.screen === "difficulties") headerTitle = `${S.category.title}`;
+  else if (S.screen === "game") headerTitle = `${S.category.title} (${S.difficulty.label})`;
+  else if (S.screen === "complete") headerTitle = "Tulos!";
+  else if (S.screen === "stickers") headerTitle = "Tarrat 🏅";
+
+  root.innerHTML = `<header><div class="hbar">
+    <button id="back" class="btn" ${canBack ? '' : 'disabled'} style="padding:8px 14px;background:${canBack ? '#E11D48' : '#334155'};border-color:${canBack ? '#9F1239' : '#475569'};color:#fff">← Takaisin</button>
+    <h1 class="tech-font" style="font-weight:700;font-size:18px;margin:0;color:var(--neon-blue);flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 8px">${esc(headerTitle)}</h1>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:4px;padding:6px 12px;border-radius:999px;background:#312E81;border:2px solid var(--neon-purple);font-weight:700;color:var(--neon-yellow)" class="tech-font">⭐ <span id="starcount">${prog.stars}</span></div>
+    </div>
+  </div></header><main id="main"></main>`;
+
+  document.getElementById("back").onclick = handleBack;
+  const m = document.getElementById("main");
+
+  if (S.screen === "menu") renderMenu(m);
+  else if (S.screen === "categories") renderCategories(m);
+  else if (S.screen === "difficulties") renderDifficulties(m);
+  else if (S.screen === "game") renderGame(m);
+  else if (S.screen === "complete") renderComplete(m);
+  else if (S.screen === "stickers") renderStickers(m);
+}
+
+/* 1. LUOKKAVALINTA */
+function renderMenu(m) {
+  m.innerHTML = `<div class="fade" style="text-align:center">
+    <h2 class="tech-font" style="font-size:36px;color:var(--neon-blue);margin:.2em 0">ROBO Math! 🤖</h2>
+    <p style="color:#94A3B8;font-size:18px;margin:0 0 12px">Tervetuloa matikkalaboratorioon!</p>
+  </div>
+  ${mascot("Minkä luokka-asteen tehtäviä haluat tehdä?")}
+  
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));max-width:600px;margin-top:20px">
+    <button class="btn grade-btn" data-g="1" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px;border-color:var(--neon-blue)">
+      <span style="font-size:54px">🌱</span>
+      <span class="tech-font" style="font-size:28px;color:var(--neon-blue)">1. LUOKKA</span>
+      <span style="color:#94A3B8;font-size:14px">Lukualue 0–20 & peruskäsitteet</span>
+    </button>
+    
+    <button class="btn grade-btn" data-g="2" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px;border-color:var(--neon-purple)">
+      <span style="font-size:54px">🚀</span>
+      <span class="tech-font" style="font-size:28px;color:var(--neon-purple)">2. LUOKKA</span>
+      <span style="color:#94A3B8;font-size:14px">Lukualue 0–100, kymmenylitys & kertolaskut</span>
+    </button>
+  </div>`;
+
+  m.querySelectorAll(".grade-btn").forEach(b => {
+    b.onclick = () => selectGrade(parseInt(b.dataset.g));
+  });
+}
+
+/* 2. AIHEALUEVALINTA */
+function renderCategories(m) {
+  const filtered = CATEGORIES.filter(c => c.grade === S.grade);
+
+  m.innerHTML = `<div class="fade" style="width:100%;max-width:760px">
+    ${mascot(`Valitse aihealue (${S.grade}. luokka):`)}
+    <div class="grid" style="grid-template-columns:1fr;margin-top:16px">
+      ${filtered.map(cat => `
+        <button class="btn cat-btn" data-id="${cat.id}" style="display:flex;align-items:center;gap:18px;padding:20px;text-align:left;border-color:${cat.color}">
+          <span style="font-size:42px;flex-shrink:0">${cat.emoji}</span>
+          <div style="display:flex;flex-direction:column">
+            <span class="tech-font" style="font-size:22px;color:${cat.color}">${cat.title}</span>
+            <span style="color:#94A3B8;font-size:14px;margin-top:2px">${cat.desc}</span>
+          </div>
+        </button>
+      `).join("")}
+    </div>
+  </div>`;
+
+  m.querySelectorAll(".cat-btn").forEach(b => {
+    b.onclick = () => selectCategory(CATEGORIES.find(c => c.id === b.dataset.id));
+  });
+}
+
+/* 3. VAIKEUSTASOVALINTA */
+function renderDifficulties(m) {
+  m.innerHTML = `<div class="fade" style="width:100%;max-width:600px">
+    ${mascot(`Valitse vaikeustaso aiheelle: <br><strong style="color:var(--neon-yellow)">${S.category.title}</strong>`)}
+    <div class="grid" style="grid-template-columns:1fr;margin-top:20px">
+      ${DIFFICULTIES.map(diff => `
+        <button class="btn diff-btn" data-id="${diff.id}" style="display:flex;align-items:center;gap:18px;padding:22px;text-align:left;border-color:${diff.color}">
+          <span style="font-size:36px;flex-shrink:0">${diff.emoji}</span>
+          <div style="display:flex;flex-direction:column">
+            <span class="tech-font" style="font-size:24px;color:${diff.color}">${diff.label}</span>
+            <span style="color:#94A3B8;font-size:14px;margin-top:2px">${diff.desc}</span>
+          </div>
+        </button>
+      `).join("")}
+    </div>
+  </div>`;
+
+  m.querySelectorAll(".diff-btn").forEach(b => {
+    b.onclick = () => selectDifficulty(DIFFICULTIES.find(d => d.id === parseInt(b.dataset.id)));
+  });
+}
+
+/* ============================ GAME ENGINE DISPATCHER ============================ */
+function renderGame(m) {
+  if (S.category.id === "g1_luvut") {
+    renderSubitisaatioGame(m);
+  } else {
+    m.innerHTML = `<div class="fade" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;max-width:550px;width:100%">
+      ${mascot("Tätä osiota rakennetaan parhaillaan!")}
+      <div style="background:var(--panel);border:3px solid var(--neon-yellow);border-radius:24px;padding:32px;width:100%">
+        <div style="font-size:56px">🚧</div>
+        <h2 class="tech-font" style="font-size:28px;color:var(--neon-yellow);margin:10px 0">SIVU KESKEN</h2>
+        <p style="color:#94A3B8">${S.category.title} (${S.difficulty.label})</p>
+      </div>
+      <button onclick="go('difficulties')" class="btn tech-font" style="padding:12px 24px">← Takaisin</button>
+    </div>`;
+  }
+}
+
+/* ============================ SUBITISAATIO-PELI ============================ */
+function renderSubitisaatioGame(m) {
+  const level = S.difficulty.id; // 1 = Helppo, 2 = Keskitaso, 3 = Haastava
+  const TOTAL_ROUNDS = (level === 3) ? 10 : 5;
+  S.totalRounds = TOTAL_ROUNDS;
+
+  let currentRound = 0;
+  let target = 0;
+  let lastTarget = null;
+  let flashTimer = null;
+
+  const dicePatterns = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8]
+  };
+
+  function nextQuestion() {
+    if (currentRound >= TOTAL_ROUNDS) {
+      go("complete");
+      return;
+    }
+
+    const isDice = (level === 1);
+    const maxVal = isDice ? 6 : 10;
+
+    do {
+      target = Math.floor(Math.random() * maxVal) + 1;
+    } while (target === lastTarget);
+    
+    lastTarget = target;
+
+    let instructionText = "Kuinka monta palloa näet skannerissa?";
+    if (level === 2) instructionText = "Kirjoita pallojen määrä näppäimistöllä!";
+    if (level === 3) instructionText = "Muista kuvio! Skanneri peittyy 3 sekunnin kuluttua... ⚡";
+
+    let answerControlsHTML = '';
+    
+    if (level === 2) {
+      answerControlsHTML = `
+        <form id="input-form" style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">
+          <input type="number" inputmode="numeric" pattern="[0-9]*" id="num-input" class="num-input tech-font" autofocus autocomplete="off" min="1" max="10" required />
+          <button type="submit" id="form-submit-btn" class="btn tech-font" style="padding:14px 24px;font-size:22px;background:var(--neon-green);color:#000;border-color:#15803D">Vastaa ➔</button>
+        </form>
+      `;
+    } else {
+      const optCount = isDice ? 3 : 4;
+      const maxRange = isDice ? 6 : 10;
+      let opts = [target];
+      while (opts.length < optCount) {
+        let r = Math.floor(Math.random() * maxRange) + 1;
+        if (!opts.includes(r)) opts.push(r);
+      }
+      opts = shuffle(opts);
+
+      answerControlsHTML = `
+        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length === 3 ? 3 : 2}, 1fr);max-width:340px;margin-top:10px">
+          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:32px;padding:16px">${opt}</button>`).join('')}
+        </div>
+      `;
+    }
+
+    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
+      ${mascot(instructionText)}
+      
+      <div class="tech-font" style="color:var(--neon-blue);font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
+
+      <!-- SKANNERIALUE -->
+      <div style="background:var(--panel);border:3px solid ${isDice ? 'var(--neon-blue)' : 'var(--neon-green)'};box-shadow:var(--border-glow);border-radius:24px;padding:24px;display:flex;align-items:center;justify-content:center;min-height:160px;min-width:240px" id="scanner-box">
+        ${isDice ? getDiceHTML(target) : getTenFrameHTML(target)}
+      </div>
+
+      ${answerControlsHTML}
+    </div>`;
+
+    // 3. TASON SALAMA-AJAUS (3,0 s = 3000 ms)
+    if (level === 3) {
+      const optBtns = m.querySelectorAll('.opt-btn');
+      optBtns.forEach(b => b.disabled = true);
+
+      flashTimer = setTimeout(() => {
+        const box = document.getElementById('scanner-box');
+        if (box) {
+          box.innerHTML = `<div class="tech-font pop" style="font-size:64px;color:var(--neon-yellow);font-weight:700">?</div>`;
+        }
+        optBtns.forEach(b => b.disabled = false);
+      }, 3000);
+    }
+
+    // TAPAHTUMANKÄSITTELIJÄT
+    if (level === 2) {
+      const form = document.getElementById('input-form');
+      const input = document.getElementById('num-input');
+      setTimeout(() => input.focus(), 100);
+
+      form.onsubmit = (e) => {
+        e.preventDefault();
+        const val = parseInt(input.value);
+        checkAnswer(val, input);
+      };
+    } else {
+      m.querySelectorAll('.opt-btn').forEach(b => {
+        b.onclick = () => {
+          if (flashTimer) clearTimeout(flashTimer);
+          const val = parseInt(b.dataset.val);
+          checkAnswer(val, b);
+        };
+      });
+    }
+  }
+
+  // VASTAUKSEN TARKISTUS
+  function checkAnswer(val, targetElement) {
+    const isDice = (S.difficulty.id === 1);
+    const box = document.getElementById('scanner-box');
+    if (box) box.innerHTML = isDice ? getDiceHTML(target) : getTenFrameHTML(target);
+
+    // Estetään lisäklikkaukset luokan avulla ilman napintilan opacity-himmennystä
+    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
+    if (controlsContainer) controlsContainer.classList.add('no-clicks');
+
+    if (val === target) {
+      playCorrect(); playStar();
+      S.roundStars++;
+      addStars(1);
+
+      targetElement.classList.add('correct-btn');
+
+      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+    } else {
+      playTry();
+      targetElement.classList.add('shake', 'wrong-btn');
+
+      // KOROSTETAAN SAMANAIKAISESTI OIKEA VASTAUS VIHREÄNÄ
+      if (targetElement.tagName === 'INPUT') {
+        const form = document.getElementById('input-form');
+        if (form && !document.getElementById('correct-badge')) {
+          const badge = document.createElement('div');
+          badge.id = 'correct-badge';
+          badge.className = 'tech-font pop correct-btn';
+          badge.style.cssText = 'font-size:24px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
+          badge.textContent = `Oikea: ${target}`;
+          form.appendChild(badge);
+        }
+      } else {
+        const optBtns = m.querySelectorAll('.opt-btn');
+        optBtns.forEach(b => {
+          if (parseInt(b.dataset.val) === target) {
+            b.classList.add('correct-btn');
+          }
+        });
+      }
+
+      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+    }
+  }
+
+  function getDiceHTML(num) {
+    const dots = dicePatterns[num] || [];
+    let cellsHTML = '';
+    for (let i = 0; i < 9; i++) {
+      cellsHTML += `<div class="dice-cell">${dots.includes(i) ? '<div class="dice-dot"></div>' : ''}</div>`;
+    }
+    return `<div class="dice-grid">${cellsHTML}</div>`;
+  }
+
+  function getTenFrameHTML(num) {
+    let cellsHTML = '';
+    for (let i = 0; i < 10; i++) {
+      cellsHTML += `<div class="tf-cell">${i < num ? '<div class="tf-dot"></div>' : ''}</div>`;
+    }
+    return `<div class="tenframe-grid">${cellsHTML}</div>`;
+  }
+
+  nextQuestion();
+}
+
+/* ============================ COMPLETE SCREEN ============================ */
+function renderComplete(m) {
+  const maxStars = S.totalRounds || 5;
+
+  m.innerHTML = `<div class="fade" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px">
+    <div style="font-size:72px">🎉</div>
+    <h2 class="tech-font" style="font-size:36px;color:var(--neon-green);margin:0">HIENOA TYÖTÄ!</h2>
+    <p style="font-size:20px;color:#94A3B8;margin:0">
+      Sait tästä osiosta <strong style="color:var(--neon-yellow);font-size:26px" class="tech-font">${S.roundStars} / ${maxStars}</strong> tähteä!
+    </p>
+
+    <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin-top:10px">
+      <button id="again" class="btn tech-font" style="padding:14px 24px;font-size:18px;background:var(--neon-blue);color:#000">Pelaa uudelleen ➔</button>
+      <button id="todiff" class="btn tech-font" style="padding:14px 24px;font-size:18px">Vaihda vaikeustasoa</button>
+      <button id="tomenu" class="btn tech-font" style="padding:14px 24px;font-size:18px;background:#334155;border-color:#475569">Valikkoon</button>
+    </div>
+  </div>`;
+
+  document.getElementById("again").onclick = () => { S.roundStars = 0; go("game"); };
+  document.getElementById("todiff").onclick = () => go("difficulties");
+  document.getElementById("tomenu").onclick = () => go("categories");
+}
+
+function renderStickers(m) {
+  m.innerHTML = `<div class="fade" style="text-align:center">
+    <h2 class="tech-font" style="font-size:32px;color:var(--neon-yellow)">Palkinnot & Tarrat 🏅</h2>
+  </div>`;
+}
+
+/* START */
+render();
+</script>
+</body>
+</html>
