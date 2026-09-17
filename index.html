@@ -47,7 +47,6 @@
   .btn:active { transform: translateY(3px); border-bottom-width: 3px; }
   .btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
   
-  /* KIRKKAAT NEON-PALAUTETYYLIT (OHITTAVAT HIMMENNYKSEN) */
   .correct-btn {
     background-color: #00E676 !important;
     border-color: #00FF66 !important;
@@ -76,43 +75,12 @@
   @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
 
   .robo-avatar { display: inline-block; filter: drop-shadow(0 0 10px rgba(56,189,248,0.5)); }
-
-  /* PELIALUEEN JA KUVIOIDEN TYYLIT */
-  .dice-grid {
-    display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(3, 34px);
-    gap: 8px; background: #090D16; border: 3px solid var(--neon-blue); padding: 12px; border-radius: 18px;
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.8), var(--border-glow);
-  }
-  .dice-cell { display: flex; align-items: center; justify-content: center; }
-  .dice-dot {
-    width: 24px; height: 24px; background: radial-gradient(circle at 30% 30%, #38BDF8, #0284C7);
-    border-radius: 50%; box-shadow: 0 0 10px var(--neon-blue); animation: pop .2s ease-out;
-  }
-
-  .tenframe-grid {
-    display: grid; grid-template-columns: repeat(5, 42px); grid-template-rows: repeat(2, 42px);
-    gap: 8px; background: #090D16; border: 3px solid var(--neon-green); padding: 12px; border-radius: 18px;
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 0 12px rgba(74,222,128,0.3);
-  }
-  .tf-cell { border: 2px dashed #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; }
-  .tf-dot {
-    width: 30px; height: 30px; background: radial-gradient(circle at 30% 30%, #4ADE80, #15803D);
-    border-radius: 50%; box-shadow: 0 0 10px var(--neon-green); animation: pop .2s ease-out;
-  }
-
-  .num-input {
-    width: 110px; height: 60px; font-size: 32px; text-align: center; font-weight: 700;
-    border: 3px solid var(--neon-yellow); border-radius: 16px; background: #090D16; color: var(--ink);
-    outline: none; box-shadow: 0 0 10px rgba(250,204,21,0.2);
-  }
-  .num-input:focus { border-color: var(--neon-pink); box-shadow: 0 0 15px rgba(244,114,182,0.4); }
 </style>
 </head>
 <body>
 <div id="root"></div>
 
 <script>
-/* ============================ MASCOT ============================ */
 function getRoboSVG(size = 80) {
   return `<svg class="robo-avatar bounce" width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
     <rect x="30" y="10" width="40" height="12" rx="4" fill="#0EA5E9"/>
@@ -130,22 +98,70 @@ function getRoboSVG(size = 80) {
 }
 
 function mascot(msg) {
-  return `<div style="display:flex;align-items:center;gap:14px;justify-content:center;margin:8px 0">
-    ${getRoboSVG(75)}
-    ${msg ? `<div style="background:#1E293B;border:3px solid var(--neon-blue);box-shadow:var(--border-glow);border-radius:16px;padding:12px 18px;font-weight:600;color:var(--ink);max-width:440px">${esc(msg)}</div>` : ''}
+  return `<div style="display:flex;align-items:center;gap:12px;justify-content:center;margin:8px 0">
+    ${getRoboSVG(70)}
+    ${msg ? `<div style="background:#1E293B;border:3px solid var(--neon-blue);box-shadow:var(--border-glow);border-radius:16px;padding:10px 14px;font-weight:600;color:var(--ink);max-width:420px">${esc(msg)}</div>` : ''}
   </div>`;
 }
 
-/* ============================ DATA STRUCTURE ============================ */
+function getCustomNumPadHTML(accentColor = "var(--neon-yellow)") {
+  return `
+    <div id="numpad-container" style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;width:100%;max-width:340px">
+      <div id="pad-display" class="tech-font" style="display:flex;align-items:center;justify-content:center;width:140px;height:54px;font-size:36px;font-weight:700;background:#090D16;border:3px solid ${accentColor};border-radius:16px;color:${accentColor};box-shadow:0 0 12px rgba(56,189,248,0.2)"></div>
+      
+      <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:8px;width:100%">
+        ${[1,2,3,4,5,6,7,8,9,0].map(n => `
+          <button class="btn pad-num-btn tech-font" data-n="${n}" style="font-size:26px;padding:12px 0;background:#1E293B;border-color:var(--neon-blue)">${n}</button>
+        `).join('')}
+      </div>
+
+      <div style="display:flex;gap:12px;width:100%;margin-top:2px">
+        <button id="pad-clear" class="btn tech-font" style="flex:1;padding:12px;background:#E11D48;border-color:#9F1239;color:#fff;font-size:18px">Pyyhi ⌫</button>
+        <button id="pad-submit" class="btn tech-font" style="flex:1.5;padding:12px;background:var(--neon-green);border-color:#15803D;color:#000;font-size:22px">OK ➔</button>
+      </div>
+    </div>
+  `;
+}
+
+function bindNumPad(onSubmit) {
+  let val = "";
+  const display = document.getElementById("pad-display");
+  const numBtns = document.querySelectorAll(".pad-num-btn");
+  const clearBtn = document.getElementById("pad-clear");
+  const submitBtn = document.getElementById("pad-submit");
+
+  numBtns.forEach(b => {
+    b.onclick = () => {
+      if (val.length < 3) {
+        val += b.dataset.n;
+        if (display) display.textContent = val;
+      }
+    };
+  });
+
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      val = "";
+      if (display) display.textContent = "";
+    };
+  }
+
+  if (submitBtn) {
+    submitBtn.onclick = () => {
+      if (val !== "") {
+        onSubmit(parseInt(val));
+      }
+    };
+  }
+}
+
 const CATEGORIES = [
-  // --- 1. LUOKKA ---
   { id: "g1_luvut", grade: 1, title: "1. Subitisaatio (Robotin Skanneri)", desc: "Tunnista lukumäärä heti ilman laskemista", emoji: "⚡", color: "#38BDF8" },
   { id: "g1_kympit", grade: 1, title: "2. Kymppiparit & Hajotelmat", desc: "Täydennä luku kymmeneksi", emoji: "🔟", color: "#4ADE80" },
   { id: "g1_laskut", grade: 1, title: "3. Yhteen- ja vähennyslasku", desc: "Peruslaskut ja puuttuvat luvut (0–20)", emoji: "➕", color: "#C084FC" },
   { id: "g1_geometria", grade: 1, title: "4. Geometria & Muodot", desc: "2D-muodot, suunnat ja kulmat", emoji: "📐", color: "#F472B6" },
   { id: "g1_kello", grade: 1, title: "5. Kello & Aika", desc: "Tasatunnit ja analoginen kello", emoji: "🕒", color: "#FACC15" },
 
-  // --- 2. LUOKKA ---
   { id: "g2_luvut", grade: 2, title: "1. Luvut & Kymmenjärjestelmä", desc: "Lukualue 0–100, kymmenet (K) ja ykköset (Y)", emoji: "💯", color: "#38BDF8" },
   { id: "g2_laskut", grade: 2, title: "2. Yhteen- ja vähennyslasku", desc: "Kymmenylitys ja 2-numeroiset laskut", emoji: "➕", color: "#4ADE80" },
   { id: "g2_kerto", grade: 2, title: "3. Kertolasku & Murtoluvut", desc: "Kertotaulut (2, 4, 5, 10) ja puolikkaat", emoji: "✖️", color: "#EC4899" },
@@ -153,85 +169,52 @@ const CATEGORIES = [
 ];
 
 const DIFFICULTIES = [
-  { id: 1, label: "Helppo", emoji: "⭐", color: "#4ADE80", desc: "Perustehtävät | Monivalinta (5 tehtävää)" },
-  { id: 2, label: "Keskitaso", emoji: "⭐⭐", color: "#FACC15", desc: "5x monivalinta + 5x kirjoita vastaus (10 tehtävää)" },
+  { id: 1, label: "Helppo", emoji: "⭐", color: "#4ADE80", desc: "Kymmenet & ykköset | Monivalinta (5 tehtävää)" },
+  { id: 2, label: "Keskitaso", emoji: "⭐⭐", color: "#FACC15", desc: "5x monivalinta + 5x oma NumPad-syöte (10 tehtävää)" },
   { id: 3, label: "Haastava", emoji: "⭐⭐⭐", color: "#EC4899", desc: "Kuten keskitaso, mutta 10 s ajastimella (10 tehtävää)" }
 ];
 
-/* ============================ AUDIO ============================ */
 let _ctx = null;
-
-function ac() { 
-  try { 
-    if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)(); 
-    if (_ctx.state === "suspended") _ctx.resume(); 
-    return _ctx; 
-  } catch (e) { 
-    return null; 
-  } 
-}
-
+function ac() { try { if (!_ctx) _ctx = new (window.AudioContext || window.webkitAudioContext)(); if (_ctx.state === "suspended") _ctx.resume(); return _ctx; } catch (e) { return null; } }
 function tone(fStart, fEnd, startTime, duration, type = "sine", gainVal = 0.15) {
   const c = ac(); if (!c) return;
-  const o = c.createOscillator();
-  const ga = c.createGain();
-
-  o.type = type;
-  o.frequency.setValueAtTime(fStart, c.currentTime + startTime);
-  if (fEnd) {
-    o.frequency.exponentialRampToValueAtTime(Math.max(fEnd, 10), c.currentTime + startTime + duration);
-  }
-
+  const o = c.createOscillator(), ga = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(fStart, c.currentTime + startTime);
+  if (fEnd) o.frequency.exponentialRampToValueAtTime(Math.max(fEnd, 10), c.currentTime + startTime + duration);
   ga.gain.setValueAtTime(1e-4, c.currentTime + startTime);
   ga.gain.exponentialRampToValueAtTime(gainVal, c.currentTime + startTime + 0.02);
   ga.gain.exponentialRampToValueAtTime(1e-4, c.currentTime + startTime + duration);
-
-  o.connect(ga);
-  ga.connect(c.destination);
-
-  o.start(c.currentTime + startTime);
-  o.stop(c.currentTime + startTime + duration + 0.03);
+  o.connect(ga); ga.connect(c.destination);
+  o.start(c.currentTime + startTime); o.stop(c.currentTime + startTime + duration + 0.03);
 }
+function playCorrect() { [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => tone(f, f * 1.02, i * 0.06, 0.12, "triangle", 0.18)); }
+function playTry() { tone(260, 110, 0, 0.25, "sawtooth", 0.15); }
+function playStar() { tone(1318.51, 1318.51, 0, 0.08, "square", 0.12); tone(1760.00, 1760.00, 0.08, 0.25, "square", 0.15); }
 
-// 1. OIKEA VASTAUS: Iloinen nouseva arpeggio (C5 - E5 - G5 - C6)
-function playCorrect() {
-  const notes = [523.25, 659.25, 783.99, 1046.50];
-  notes.forEach((freq, idx) => {
-    tone(freq, freq * 1.02, idx * 0.06, 0.12, "triangle", 0.18);
-  });
-}
-
-// 2. VÄÄRÄ VASTAUS: Pehmeä laskeva boing-ääni
-function playTry() {
-  tone(260, 110, 0, 0.25, "sawtooth", 0.15);
-}
-
-// 3. TÄHTI / VOITTO: Retro-tyylinen kimmeltävä tupla-kolikko (E6 - A6)
-function playStar() {
-  tone(1318.51, 1318.51, 0, 0.08, "square", 0.12);
-  tone(1760.00, 1760.00, 0.08, 0.25, "square", 0.15);
-}
-
-/* ============================ STORAGE ============================ */
 const PKEY = "robomath_progress";
 let prog = load(PKEY, { stars: 0 });
 function load(k, def) { try { return { ...def, ...JSON.parse(localStorage.getItem(k) || "{}") }; } catch (e) { return { ...def }; } }
 function saveProg() { localStorage.setItem(PKEY, JSON.stringify(prog)); }
 function addStars(n) { prog.stars += n; saveProg(); renderHeader(); }
 
-/* ============================ STATE ============================ */
-const S = {
-  screen: "menu",
-  grade: null,
-  category: null,
-  difficulty: null,
-  roundStars: 0,
-  totalRounds: 5
-};
-
+const S = { screen: "menu", grade: null, category: null, difficulty: null, roundStars: 0, totalRounds: 5 };
 const root = document.getElementById("root");
 
-function go(screen) { S.screen = screen; render(); }
+// Yleinen ajastinten ja kesken jääneiden peliprosessien nollaus
+let activeGameCleanup = null;
+function cleanupGame() {
+  if (typeof activeGameCleanup === "function") {
+    activeGameCleanup();
+    activeGameCleanup = null;
+  }
+}
+
+function go(screen) {
+  cleanupGame(); // Varmistetaan että mikään peli/ajastin ei jää taustalle pyörimään
+  S.screen = screen;
+  render();
+}
+
 function selectGrade(g) { S.grade = g; go("categories"); }
 function selectCategory(cat) { S.category = cat; go("difficulties"); }
 function selectDifficulty(diff) { S.difficulty = diff; S.roundStars = 0; go("game"); }
@@ -252,7 +235,6 @@ function renderHeader() {
   if (el) el.textContent = prog.stars;
 }
 
-/* ============================ RENDERER ============================ */
 function render() {
   window.scrollTo(0, 0);
   const canBack = S.screen !== "menu";
@@ -283,7 +265,6 @@ function render() {
   else if (S.screen === "stickers") renderStickers(m);
 }
 
-/* 1. LUOKKAVALINTA */
 function renderMenu(m) {
   m.innerHTML = `<div class="fade" style="text-align:center">
     <h2 class="tech-font" style="font-size:36px;color:var(--neon-blue);margin:.2em 0">ROBO Math! 🤖</h2>
@@ -301,7 +282,7 @@ function renderMenu(m) {
     <button class="btn grade-btn" data-g="2" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:28px;border-color:var(--neon-purple)">
       <span style="font-size:54px">🚀</span>
       <span class="tech-font" style="font-size:28px;color:var(--neon-purple)">2. LUOKKA</span>
-      <span style="color:#94A3B8;font-size:14px">Lukualue 0–100, kymmenylitys & kertolaskut</span>
+      <span style="color:#94A3B8;font-size:14px">Lukualue 0–100, kymmenet & kertolaskut</span>
     </button>
   </div>`;
 
@@ -310,7 +291,6 @@ function renderMenu(m) {
   });
 }
 
-/* 2. AIHEALUEVALINTA */
 function renderCategories(m) {
   const filtered = CATEGORIES.filter(c => c.grade === S.grade);
 
@@ -334,7 +314,6 @@ function renderCategories(m) {
   });
 }
 
-/* 3. VAIKEUSTASOVALINTA */
 function renderDifficulties(m) {
   m.innerHTML = `<div class="fade" style="width:100%;max-width:600px">
     ${mascot(`Valitse vaikeustaso aiheelle: <br><strong style="color:var(--neon-yellow)">${S.category.title}</strong>`)}
@@ -356,786 +335,163 @@ function renderDifficulties(m) {
   });
 }
 
-/* ============================ GAME ENGINE DISPATCHER ============================ */
 function renderGame(m) {
-  if (S.category.id === "g1_luvut") {
-    renderSubitisaatioGame(m);
-  } else if (S.category.id === "g1_kympit") {
-    renderKymppiparitGame(m);
-  } else if (S.category.id === "g1_laskut") {
-    renderLaskutGame(m);
-  } else if (S.category.id === "g1_geometria") {
-    renderGeometriaGame(m);
-  } else if (S.category.id === "g1_kello") {
-    renderKelloGame(m);
-  } else {
-    m.innerHTML = `<div class="fade" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;max-width:550px;width:100%">
-      ${mascot("Tätä osiota rakennetaan parhaillaan!")}
-      <div style="background:var(--panel);border:3px solid var(--neon-yellow);border-radius:24px;padding:32px;width:100%">
-        <div style="font-size:56px">🚧</div>
-        <h2 class="tech-font" style="font-size:28px;color:var(--neon-yellow);margin:10px 0">SIVU KESKEN</h2>
-        <p style="color:#94A3B8">${S.category.title} (${S.difficulty.label})</p>
-      </div>
-      <button onclick="go('difficulties')" class="btn tech-font" style="padding:12px 24px">← Takaisin</button>
-    </div>`;
+  if (S.grade === 1) {
+    if (S.category.id === "g1_luvut") renderSubitisaatioGame(m);
+    else if (S.category.id === "g1_kympit") renderKymppiparitGame(m);
+    else if (S.category.id === "g1_laskut") renderLaskutGame(m);
+    else if (S.category.id === "g1_geometria") renderGeometriaGame(m);
+    else if (S.category.id === "g1_kello") renderKelloGame(m);
+  } else if (S.grade === 2) {
+    if (S.category.id === "g2_luvut") {
+      renderG2LuvutGame(m);
+    } else {
+      renderPlaceholderGame(m);
+    }
   }
 }
 
-/* ============================ 1. SUBITISAATIO-PELI ============================ */
-function renderSubitisaatioGame(m) {
-  const level = S.difficulty.id;
-  const TOTAL_ROUNDS = (level === 3) ? 10 : 5;
-  S.totalRounds = TOTAL_ROUNDS;
-
-  let currentRound = 0;
-  let target = 0;
-  let lastTarget = null;
-  let flashTimer = null;
-
-  const dicePatterns = {
-    1: [4],
-    2: [0, 8],
-    3: [0, 4, 8],
-    4: [0, 2, 6, 8],
-    5: [0, 2, 4, 6, 8],
-    6: [0, 2, 3, 5, 6, 8]
-  };
-
-  function nextQuestion() {
-    if (currentRound >= TOTAL_ROUNDS) {
-      go("complete");
-      return;
-    }
-
-    const isDice = (level === 1);
-    const maxVal = isDice ? 6 : 10;
-
-    do {
-      target = Math.floor(Math.random() * maxVal) + 1;
-    } while (target === lastTarget);
-    
-    lastTarget = target;
-
-    let instructionText = "Kuinka monta palloa näet skannerissa?";
-    if (level === 2) instructionText = "Kirjoita pallojen määrä näppäimistöllä!";
-    if (level === 3) instructionText = "Muista kuvio! Skanneri peittyy 3 sekunnin kuluttua... ⚡";
-
-    let answerControlsHTML = '';
-    
-    if (level === 2) {
-      answerControlsHTML = `
-        <form id="input-form" style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="num-input" class="num-input tech-font" autofocus autocomplete="off" min="1" max="10" required />
-          <button type="submit" id="form-submit-btn" class="btn tech-font" style="padding:14px 24px;font-size:22px;background:var(--neon-green);color:#000;border-color:#15803D">Vastaa ➔</button>
-        </form>
-      `;
-    } else {
-      const optCount = isDice ? 3 : 4;
-      const maxRange = isDice ? 6 : 10;
-      let opts = [target];
-      while (opts.length < optCount) {
-        let r = Math.floor(Math.random() * maxRange) + 1;
-        if (!opts.includes(r)) opts.push(r);
-      }
-      opts = shuffle(opts);
-
-      answerControlsHTML = `
-        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length === 3 ? 3 : 2}, 1fr);max-width:340px;margin-top:10px">
-          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:32px;padding:16px">${opt}</button>`).join('')}
-        </div>
-      `;
-    }
-
-    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
-      ${mascot(instructionText)}
-      
-      <div class="tech-font" style="color:var(--neon-blue);font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
-
-      <div style="background:var(--panel);border:3px solid ${isDice ? 'var(--neon-blue)' : 'var(--neon-green)'};box-shadow:var(--border-glow);border-radius:24px;padding:24px;display:flex;align-items:center;justify-content:center;min-height:160px;min-width:240px" id="scanner-box">
-        ${isDice ? getDiceHTML(target) : getTenFrameHTML(target)}
-      </div>
-
-      ${answerControlsHTML}
-    </div>`;
-
-    if (level === 3) {
-      const optBtns = m.querySelectorAll('.opt-btn');
-      optBtns.forEach(b => b.disabled = true);
-
-      flashTimer = setTimeout(() => {
-        const box = document.getElementById('scanner-box');
-        if (box) {
-          box.innerHTML = `<div class="tech-font pop" style="font-size:64px;color:var(--neon-yellow);font-weight:700">?</div>`;
-        }
-        optBtns.forEach(b => b.disabled = false);
-      }, 3000);
-    }
-
-    if (level === 2) {
-      const form = document.getElementById('input-form');
-      const input = document.getElementById('num-input');
-      setTimeout(() => input.focus(), 100);
-
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        const val = parseInt(input.value);
-        checkAnswer(val, input);
-      };
-    } else {
-      m.querySelectorAll('.opt-btn').forEach(b => {
-        b.onclick = () => {
-          if (flashTimer) clearTimeout(flashTimer);
-          const val = parseInt(b.dataset.val);
-          checkAnswer(val, b);
-        };
-      });
-    }
-  }
-
-  function checkAnswer(val, targetElement) {
-    const isDice = (S.difficulty.id === 1);
-    const box = document.getElementById('scanner-box');
-    if (box) box.innerHTML = isDice ? getDiceHTML(target) : getTenFrameHTML(target);
-
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
-    if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    if (val === target) {
-      playCorrect(); playStar();
-      S.roundStars++;
-      addStars(1);
-
-      targetElement.classList.add('correct-btn');
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-    } else {
-      playTry();
-      targetElement.classList.add('shake', 'wrong-btn');
-
-      if (targetElement.tagName === 'INPUT') {
-        const form = document.getElementById('input-form');
-        if (form && !document.getElementById('correct-badge')) {
-          const badge = document.createElement('div');
-          badge.id = 'correct-badge';
-          badge.className = 'tech-font pop correct-btn';
-          badge.style.cssText = 'font-size:24px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-          badge.textContent = `Oikea: ${target}`;
-          form.appendChild(badge);
-        }
-      } else {
-        const optBtns = m.querySelectorAll('.opt-btn');
-        optBtns.forEach(b => {
-          if (parseInt(b.dataset.val) === target) {
-            b.classList.add('correct-btn');
-          }
-        });
-      }
-
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-    }
-  }
-
-  function getDiceHTML(num) {
-    const dots = dicePatterns[num] || [];
-    let cellsHTML = '';
-    for (let i = 0; i < 9; i++) {
-      cellsHTML += `<div class="dice-cell">${dots.includes(i) ? '<div class="dice-dot"></div>' : ''}</div>`;
-    }
-    return `<div class="dice-grid">${cellsHTML}</div>`;
-  }
-
-  function getTenFrameHTML(num) {
-    let cellsHTML = '';
-    for (let i = 0; i < 10; i++) {
-      cellsHTML += `<div class="tf-cell">${i < num ? '<div class="tf-dot"></div>' : ''}</div>`;
-    }
-    return `<div class="tenframe-grid">${cellsHTML}</div>`;
-  }
-
-  nextQuestion();
+function renderPlaceholderGame(m) {
+  m.innerHTML = `<div class="fade" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px;max-width:550px;width:100%">
+    ${mascot("Tätä 2. luokan osiota rakennetaan parhaillaan!")}
+    <div style="background:var(--panel);border:3px solid var(--neon-yellow);border-radius:24px;padding:32px;width:100%">
+      <div style="font-size:56px">🚀</div>
+      <h2 class="tech-font" style="font-size:28px;color:var(--neon-yellow);margin:10px 0"> TULOSSA PIAN </h2>
+      <p style="color:#94A3B8">${S.category.title} (${S.difficulty.label})</p>
+    </div>
+    <button onclick="go('difficulties')" class="btn tech-font" style="padding:12px 24px">← Takaisin</button>
+  </div>`;
 }
 
-/* ============================ 2. KYMPPIPARIT-PELI ============================ */
-function renderKymppiparitGame(m) {
-  const level = S.difficulty.id;
-  const TOTAL_ROUNDS = (level === 3) ? 10 : 5;
-  S.totalRounds = TOTAL_ROUNDS;
-
-  let currentRound = 0;
-  let target = 0;
-  let givenNum = 0;
-  let lastGiven = null;
-  let timerInterval = null;
-
-  function cleanupTimer() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-  }
-
-  function nextQuestion() {
-    cleanupTimer();
-
-    if (currentRound >= TOTAL_ROUNDS) {
-      go("complete");
-      return;
-    }
-
-    do {
-      givenNum = Math.floor(Math.random() * 9) + 1;
-    } while (givenNum === lastGiven);
-    lastGiven = givenNum;
-
-    target = 10 - givenNum;
-
-    let instructionText = "Kuinka monta palloa puuttuu kymmenestä?";
-    let mathDisplay = "";
-
-    if (level === 1) {
-      instructionText = `Täydennä kymppipari: ${givenNum} + ? = 10`;
-      mathDisplay = `
-        <div class="tenframe-grid">${getTenFrameWithGhosts(givenNum)}</div>
-        <div class="tech-font" style="font-size:32px;font-weight:700;color:var(--neon-yellow);margin-top:14px">
-          ${givenNum} + <span style="color:var(--neon-blue)">?</span> = 10
-        </div>
-      `;
-    } else if (level === 2) {
-      instructionText = "Valitse oikea puuttuva luku!";
-      const eqType = Math.floor(Math.random() * 3) + 1;
-      if (eqType === 1) {
-        mathDisplay = `<div class="tech-font pop" style="font-size:42px;font-weight:700;color:var(--neon-yellow);margin:20px 0">${givenNum} + <span style="color:var(--neon-blue)">?</span> = 10</div>`;
-      } else if (eqType === 2) {
-        mathDisplay = `<div class="tech-font pop" style="font-size:42px;font-weight:700;color:var(--neon-yellow);margin:20px 0"><span style="color:var(--neon-blue)">?</span> + ${givenNum} = 10</div>`;
-      } else {
-        mathDisplay = `<div class="tech-font pop" style="font-size:42px;font-weight:700;color:var(--neon-yellow);margin:20px 0">10 − ${givenNum} = <span style="color:var(--neon-blue)">?</span></div>`;
-      }
-    } else {
-      instructionText = "Nopeuslasku! Sinulla on 10 sekuntia aikaa... ⚡";
-      const eqType = Math.floor(Math.random() * 3) + 1;
-      if (eqType === 1) {
-        mathDisplay = `<div class="tech-font pop" style="font-size:44px;font-weight:700;color:var(--neon-yellow);margin:16px 0">${givenNum} + <span style="color:var(--neon-pink)">?</span> = 10</div>`;
-      } else if (eqType === 2) {
-        mathDisplay = `<div class="tech-font pop" style="font-size:44px;font-weight:700;color:var(--neon-yellow);margin:16px 0"><span style="color:var(--neon-pink)">?</span> + ${givenNum} = 10</div>`;
-      } else {
-        mathDisplay = `<div class="tech-font pop" style="font-size:44px;font-weight:700;color:var(--neon-yellow);margin:16px 0">10 − ${givenNum} = <span style="color:var(--neon-pink)">?</span></div>`;
-      }
-    }
-
-    let answerControlsHTML = '';
-    if (level === 3) {
-      answerControlsHTML = `
-        <form id="input-form" style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="num-input" class="num-input tech-font" autofocus autocomplete="off" min="1" max="10" required />
-          <button type="submit" id="form-submit-btn" class="btn tech-font" style="padding:14px 24px;font-size:22px;background:var(--neon-green);color:#000;border-color:#15803D">Vastaa ➔</button>
-        </form>
-      `;
-    } else {
-      const optCount = (level === 1) ? 3 : 4;
-      let opts = [target];
-      while (opts.length < optCount) {
-        let r = Math.floor(Math.random() * 10) + 1;
-        if (!opts.includes(r)) opts.push(r);
-      }
-      opts = shuffle(opts);
-
-      answerControlsHTML = `
-        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length === 3 ? 3 : 2}, 1fr);max-width:340px;margin-top:10px">
-          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:32px;padding:16px">${opt}</button>`).join('')}
-        </div>
-      `;
-    }
-
-    let timerHTML = '';
-    if (level === 3) {
-      timerHTML = `
-        <div id="timer-box" class="tech-font pop" style="display:flex;align-items:center;gap:6px;font-size:22px;font-weight:700;color:var(--neon-pink);background:rgba(236,72,153,0.15);border:2px solid var(--neon-pink);padding:6px 16px;border-radius:14px;box-shadow:0 0 12px rgba(236,72,153,0.4)">
-          ⏱️ <span id="timer-count">10</span> s
-        </div>
-      `;
-    }
-
-    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
-      ${mascot(instructionText)}
-      
-      <div style="display:flex;align-items:center;gap:16px">
-        <div class="tech-font" style="color:var(--neon-blue);font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
-        ${timerHTML}
-      </div>
-
-      <div style="background:var(--panel);border:3px solid var(--neon-green);box-shadow:var(--border-glow);border-radius:24px;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;min-width:280px" id="scanner-box">
-        ${mathDisplay}
-      </div>
-
-      ${answerControlsHTML}
-    </div>`;
-
-    if (level === 3) {
-      let timeLeft = 10;
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        const timerCountEl = document.getElementById('timer-count');
-        if (timerCountEl) timerCountEl.textContent = timeLeft;
-
-        if (timeLeft <= 0) {
-          cleanupTimer();
-          handleTimeout();
-        }
-      }, 1000);
-    }
-
-    if (level === 3) {
-      const form = document.getElementById('input-form');
-      const input = document.getElementById('num-input');
-      setTimeout(() => input.focus(), 100);
-
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        cleanupTimer();
-        const val = parseInt(input.value);
-        checkAnswer(val, input);
-      };
-    } else {
-      m.querySelectorAll('.opt-btn').forEach(b => {
-        b.onclick = () => {
-          cleanupTimer();
-          const val = parseInt(b.dataset.val);
-          checkAnswer(val, b);
-        };
-      });
-    }
-  }
-
-  function handleTimeout() {
-    playTry();
-    const form = document.getElementById('input-form');
-    if (form) form.classList.add('no-clicks');
-    const input = document.getElementById('num-input');
-    if (input) input.classList.add('shake', 'wrong-btn');
-    const submitBtn = document.getElementById('form-submit-btn');
-    if (submitBtn) submitBtn.disabled = true;
-
-    if (form && !document.getElementById('correct-badge')) {
-      const badge = document.createElement('div');
-      badge.id = 'correct-badge';
-      badge.className = 'tech-font pop correct-btn';
-      badge.style.cssText = 'font-size:22px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-      badge.textContent = `Aika loppui! Oikea: ${target}`;
-      form.appendChild(badge);
-    }
-
-    setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-  }
-
-  function checkAnswer(val, targetElement) {
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
-    if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    if (val === target) {
-      playCorrect(); playStar();
-      S.roundStars++;
-      addStars(1);
-
-      targetElement.classList.add('correct-btn');
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-    } else {
-      playTry();
-      targetElement.classList.add('shake', 'wrong-btn');
-
-      if (targetElement.tagName === 'INPUT') {
-        const form = document.getElementById('input-form');
-        if (form && !document.getElementById('correct-badge')) {
-          const badge = document.createElement('div');
-          badge.id = 'correct-badge';
-          badge.className = 'tech-font pop correct-btn';
-          badge.style.cssText = 'font-size:24px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-          badge.textContent = `Oikea: ${target}`;
-          form.appendChild(badge);
-        }
-      } else {
-        const optBtns = m.querySelectorAll('.opt-btn');
-        optBtns.forEach(b => {
-          if (parseInt(b.dataset.val) === target) {
-            b.classList.add('correct-btn');
-          }
-        });
-      }
-
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-    }
-  }
-
-  function getTenFrameWithGhosts(num) {
-    let cellsHTML = '';
-    for (let i = 0; i < 10; i++) {
-      if (i < num) {
-        cellsHTML += `<div class="tf-cell"><div class="tf-dot"></div></div>`;
-      } else {
-        cellsHTML += `<div class="tf-cell" style="border-color:rgba(56,189,248,0.3)"><div style="width:20px;height:20px;border:2px dashed var(--neon-blue);border-radius:50%;opacity:0.4"></div></div>`;
-      }
-    }
-    return cellsHTML;
-  }
-
-  nextQuestion();
-}
-
-/* ============================ 3. YHTEEN- JA VÄHENNYS LASKU (0–20) ============================ */
-function renderLaskutGame(m) {
-  const level = S.difficulty.id;
-  const TOTAL_ROUNDS = (level === 1) ? 5 : 10;
-  S.totalRounds = TOTAL_ROUNDS;
-
-  let currentRound = 0;
-  let target = 0;
-  let mathText = "";
-  let lastExprKey = null;
-  let timerInterval = null;
-
-  function cleanupTimer() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
-  }
-
-  function nextQuestion() {
-    cleanupTimer();
-
-    if (currentRound >= TOTAL_ROUNDS) {
-      go("complete");
-      return;
-    }
-
-    let exprKey = "";
-    let qTarget = 0;
-    let qText = "";
-
-    do {
-      if (level === 1) {
-        const isAdd = Math.random() < 0.5;
-        if (isAdd) {
-          const a = Math.floor(Math.random() * 12) + 1;
-          const b = Math.floor(Math.random() * (20 - a)) + 1;
-          qTarget = a + b;
-          qText = `${a} + ${b} = <span style="color:var(--neon-purple)">?</span>`;
-          exprKey = `add_${a}_${b}`;
-        } else {
-          const a = Math.floor(Math.random() * 18) + 2;
-          const b = Math.floor(Math.random() * (a - 1)) + 1;
-          qTarget = a - b;
-          qText = `${a} − ${b} = <span style="color:var(--neon-purple)">?</span>`;
-          exprKey = `sub_${a}_${b}`;
-        }
-      } else {
-        const type = Math.floor(Math.random() * 4) + 1;
-        if (type === 1) {
-          const a = Math.floor(Math.random() * 10) + 1;
-          const b = Math.floor(Math.random() * 10) + 1;
-          qTarget = a + b;
-          qText = `${a} + ${b} = <span style="color:var(--neon-purple)">?</span>`;
-          exprKey = `t1_${a}_${b}`;
-        } else if (type === 2) {
-          const a = Math.floor(Math.random() * 12) + 1;
-          const targetVal = Math.floor(Math.random() * (20 - a)) + 1;
-          const c = a + targetVal;
-          qTarget = targetVal;
-          qText = `${a} + <span style="color:var(--neon-pink)">?</span> = ${c}`;
-          exprKey = `t2_${a}_${c}`;
-        } else if (type === 3) {
-          const a = Math.floor(Math.random() * 15) + 4;
-          const targetVal = Math.floor(Math.random() * (a - 1)) + 1;
-          const c = a - targetVal;
-          qTarget = targetVal;
-          qText = `${a} − <span style="color:var(--neon-pink)">?</span> = ${c}`;
-          exprKey = `t3_${a}_${c}`;
-        } else {
-          const targetVal = Math.floor(Math.random() * 12) + 1;
-          const b = Math.floor(Math.random() * (20 - targetVal)) + 1;
-          const c = targetVal + b;
-          qTarget = targetVal;
-          qText = `<span style="color:var(--neon-pink)">?</span> + ${b} = ${c}`;
-          exprKey = `t4_${b}_${c}`;
-        }
-      }
-    } while (exprKey === lastExprKey);
-
-    lastExprKey = exprKey;
-    target = qTarget;
-    mathText = qText;
-
-    const isInputMode = (level === 2 && currentRound >= 5) || (level === 3 && currentRound >= 5);
-
-    let instructionText = "Laske vastaus!";
-    if (level === 2) {
-      instructionText = (currentRound < 5) ? "Valitse oikea vastaus!" : "Kirjoita vastaus näppäimistöllä!";
-    } else if (level === 3) {
-      instructionText = (currentRound < 5) ? "Salama-monivalinta! Aikaa 10 sekuntia... ⚡" : "Salama-kirjoitus! Aikaa 10 sekuntia... ⚡";
-    }
-
-    let answerControlsHTML = '';
-    if (isInputMode) {
-      answerControlsHTML = `
-        <form id="input-form" style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="num-input" class="num-input tech-font" autofocus autocomplete="off" min="0" max="20" required />
-          <button type="submit" id="form-submit-btn" class="btn tech-font" style="padding:14px 24px;font-size:22px;background:var(--neon-purple);color:#FFF;border-color:#9333EA">Vastaa ➔</button>
-        </form>
-      `;
-    } else {
-      const optCount = (level === 1) ? 3 : 4;
-      let opts = [target];
-      while (opts.length < optCount) {
-        let r = Math.floor(Math.random() * 21);
-        if (!opts.includes(r)) opts.push(r);
-      }
-      opts = shuffle(opts);
-
-      answerControlsHTML = `
-        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length === 3 ? 3 : 2}, 1fr);max-width:340px;margin-top:10px">
-          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:32px;padding:16px">${opt}</button>`).join('')}
-        </div>
-      `;
-    }
-
-    let timerHTML = '';
-    if (level === 3) {
-      timerHTML = `
-        <div id="timer-box" class="tech-font pop" style="display:flex;align-items:center;gap:6px;font-size:22px;font-weight:700;color:var(--neon-pink);background:rgba(236,72,153,0.15);border:2px solid var(--neon-pink);padding:6px 16px;border-radius:14px;box-shadow:0 0 12px rgba(236,72,153,0.4)">
-          ⏱️ <span id="timer-count">10</span> s
-        </div>
-      `;
-    }
-
-    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
-      ${mascot(instructionText)}
-      
-      <div style="display:flex;align-items:center;gap:16px">
-        <div class="tech-font" style="color:var(--neon-blue);font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
-        ${timerHTML}
-      </div>
-
-      <div style="background:var(--panel);border:3px solid var(--neon-purple);box-shadow:0 0 15px rgba(192,132,252,0.35);border-radius:24px;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;min-width:280px" id="scanner-box">
-        <div class="tech-font pop" style="font-size:48px;font-weight:700;color:var(--neon-yellow);margin:10px 0">${mathText}</div>
-      </div>
-
-      ${answerControlsHTML}
-    </div>`;
-
-    if (level === 3) {
-      let timeLeft = 10;
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        const timerCountEl = document.getElementById('timer-count');
-        if (timerCountEl) timerCountEl.textContent = timeLeft;
-
-        if (timeLeft <= 0) {
-          cleanupTimer();
-          handleTimeout();
-        }
-      }, 1000);
-    }
-
-    if (isInputMode) {
-      const form = document.getElementById('input-form');
-      const input = document.getElementById('num-input');
-      setTimeout(() => input.focus(), 100);
-
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        cleanupTimer();
-        const val = parseInt(input.value);
-        checkAnswer(val, input);
-      };
-    } else {
-      m.querySelectorAll('.opt-btn').forEach(b => {
-        b.onclick = () => {
-          cleanupTimer();
-          const val = parseInt(b.dataset.val);
-          checkAnswer(val, b);
-        };
-      });
-    }
-  }
-
-  function handleTimeout() {
-    playTry();
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
-    if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    const input = document.getElementById('num-input');
-    const submitBtn = document.getElementById('form-submit-btn');
-    if (input) input.classList.add('shake', 'wrong-btn');
-    if (submitBtn) submitBtn.disabled = true;
-
-    const optBtns = m.querySelectorAll('.opt-btn');
-    optBtns.forEach(b => {
-      if (parseInt(b.dataset.val) === target) {
-        b.classList.add('correct-btn');
-      }
-    });
-
-    if (input && !document.getElementById('correct-badge')) {
-      const form = document.getElementById('input-form');
-      if (form) {
-        const badge = document.createElement('div');
-        badge.id = 'correct-badge';
-        badge.className = 'tech-font pop correct-btn';
-        badge.style.cssText = 'font-size:22px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-        badge.textContent = `Aika loppui! Oikea: ${target}`;
-        form.appendChild(badge);
-      }
-    }
-
-    setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-  }
-
-  function checkAnswer(val, targetElement) {
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
-    if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    if (val === target) {
-      playCorrect(); playStar();
-      S.roundStars++;
-      addStars(1);
-
-      targetElement.classList.add('correct-btn');
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-    } else {
-      playTry();
-      targetElement.classList.add('shake', 'wrong-btn');
-
-      if (targetElement.tagName === 'INPUT') {
-        const form = document.getElementById('input-form');
-        if (form && !document.getElementById('correct-badge')) {
-          const badge = document.createElement('div');
-          badge.id = 'correct-badge';
-          badge.className = 'tech-font pop correct-btn';
-          badge.style.cssText = 'font-size:24px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-          badge.textContent = `Oikea: ${target}`;
-          form.appendChild(badge);
-        }
-      } else {
-        const optBtns = m.querySelectorAll('.opt-btn');
-        optBtns.forEach(b => {
-          if (parseInt(b.dataset.val) === target) {
-            b.classList.add('correct-btn');
-          }
-        });
-      }
-
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-    }
-  }
-
-  nextQuestion();
-}
-
-/* ============================ 4. GEOMETRIA & MUODOT ============================ */
-function renderGeometriaGame(m) {
+/* ============================ 2. LUOKKA: 1. LUVUT & KYMMENJÄRJESTELMÄ (TURVALLINEN AJASTIN) ============================ */
+function renderG2LuvutGame(m) {
   const level = S.difficulty.id;
   const TOTAL_ROUNDS = (level === 1) ? 5 : 10;
   S.totalRounds = TOTAL_ROUNDS;
 
   let currentRound = 0;
   let targetVal = null;
-  let lastKey = null;
   let timerInterval = null;
-
-  const SHAPES = [
-    { name: "Ympyrä", corners: 0, svg: `<circle cx="50" cy="50" r="35" fill="none" stroke="var(--neon-yellow)" stroke-width="6"/>` },
-    { name: "Neliö", corners: 4, svg: `<rect x="20" y="20" width="60" height="60" fill="none" stroke="var(--neon-blue)" stroke-width="6" rx="4"/>` },
-    { name: "Kolmio", corners: 3, svg: `<polygon points="50,15 85,80 15,80" fill="none" stroke="var(--neon-green)" stroke-width="6"/>` },
-    { name: "Suorakulmio", corners: 4, svg: `<rect x="15" y="30" width="70" height="40" fill="none" stroke="var(--neon-purple)" stroke-width="6" rx="4"/>` },
-    { name: "Viisikulmio", corners: 5, svg: `<polygon points="50,15 85,40 70,80 30,80 15,40" fill="none" stroke="var(--neon-pink)" stroke-width="6"/>` }
-  ];
-
-  const DIRECTIONS = [
-    { name: "Vasen", symbol: "⬅️", svg: `<path d="M70 50 L30 50 M45 32 L28 50 L45 68" stroke="var(--neon-pink)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` },
-    { name: "Oikea", symbol: "➡️", svg: `<path d="M30 50 L70 50 M55 32 L72 50 L55 68" stroke="var(--neon-green)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` },
-    { name: "Ylös", symbol: "⬆️", svg: `<path d="M50 70 L50 30 M32 45 L50 28 L68 45" stroke="var(--neon-blue)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` },
-    { name: "Alas", symbol: "⬇️", svg: `<path d="M50 30 L50 70 M32 55 L50 72 L68 55" stroke="var(--neon-yellow)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>` }
-  ];
+  let activeTimeouts = [];
 
   function cleanupTimer() {
     if (timerInterval) {
       clearInterval(timerInterval);
       timerInterval = null;
     }
+    activeTimeouts.forEach(t => clearTimeout(t));
+    activeTimeouts = [];
+  }
+
+  // Rekisteröidään cleanup globaalisti tälle pelisessiolle
+  activeGameCleanup = cleanupTimer;
+
+  function safeSetTimeout(fn, delay) {
+    const t = setTimeout(() => {
+      activeTimeouts = activeTimeouts.filter(item => item !== t);
+      fn();
+    }, delay);
+    activeTimeouts.push(t);
+  }
+
+  function getBase10VisualHTML(tens, ones) {
+    let tensHTML = '';
+    for (let i = 0; i < tens; i++) {
+      tensHTML += `<div style="width:12px;height:48px;background:var(--neon-blue);border-radius:4px;box-shadow:0 0 6px rgba(56,189,248,0.5)"></div>`;
+    }
+    let onesHTML = '';
+    for (let i = 0; i < ones; i++) {
+      onesHTML += `<div style="width:12px;height:12px;background:var(--neon-green);border-radius:3px;box-shadow:0 0 6px rgba(74,222,128,0.5)"></div>`;
+    }
+
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div style="display:flex;gap:16px;align-items:flex-end;min-height:54px">
+        <div style="display:flex;gap:4px">${tensHTML || '<span style="color:#64748B;font-size:14px">Ei kymmeniä</span>'}</div>
+        <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:4px;max-width:80px">${onesHTML}</div>
+      </div>
+      <div class="tech-font" style="font-size:14px;color:#94A3B8">${tens} kymmentä ja ${ones} ykköstä</div>
+    </div>`;
   }
 
   function nextQuestion() {
     cleanupTimer();
 
     if (currentRound >= TOTAL_ROUNDS) {
+      activeGameCleanup = null;
       go("complete");
       return;
     }
 
-    let displayGraphicHTML = "";
+    const isInputMode = (level > 1 && currentRound >= 5);
+    const subType = (level === 1) ? 1 : (Math.floor(Math.random() * 3) + 1);
+
     let instructionText = "";
+    let displayHTML = "";
+    let opts = [];
 
-    const isInputMode = (level > 1 && currentRound >= 5);
+    if (subType === 1) {
+      const num = Math.floor(Math.random() * 80) + 12;
+      const tens = Math.floor(num / 10);
+      const ones = num % 10;
+      targetVal = num;
+      instructionText = "Mikä luku kuvassa on? (Kymmenet ja ykköset)";
+      displayHTML = getBase10VisualHTML(tens, ones);
 
-    if (level === 1) {
-      instructionText = "Mikä muoto tämä on?";
-      let shapeObj;
+      if (!isInputMode) {
+        opts = [targetVal];
+        while (opts.length < 4) {
+          let r = targetVal + (Math.floor(Math.random() * 9) - 4);
+          if (r >= 10 && r <= 99 && !opts.includes(r)) opts.push(r);
+        }
+        opts = shuffle(opts);
+      }
+    } else if (subType === 2) {
+      let a, b;
       do {
-        shapeObj = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-      } while (shapeObj.name === lastKey);
-      lastKey = shapeObj.name;
+        a = Math.floor(Math.random() * 80) + 15;
+        b = Math.floor(Math.random() * 80) + 15;
+      } while (a === b || Math.abs(a - b) < 5);
 
-      targetVal = shapeObj.name;
-      displayGraphicHTML = `<svg width="120" height="120" viewBox="0 0 100 100">${shapeObj.svg}</svg>`;
+      const askSmaller = Math.random() < 0.5;
+      targetVal = askSmaller ? Math.min(a, b) : Math.max(a, b);
+      const questionWord = askSmaller ? "pienempi" : "suurempi";
 
+      instructionText = `Kumpi luku on ${questionWord}?`;
+      displayHTML = `<div class="tech-font pop" style="font-size:30px;font-weight:700;color:var(--neon-yellow);text-align:center">Kumpi luku on ${questionWord}:<br><span style="color:var(--neon-blue);font-size:42px">${a}</span> tai <span style="color:var(--neon-pink);font-size:42px">${b}</span>?</div>`;
+
+      opts = shuffle([a, b]);
     } else {
-      if (currentRound < 5) {
-        instructionText = "Mihin suuntaan nuoli osoittaa?";
-        let dirObj;
-        do {
-          dirObj = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
-        } while (dirObj.name === lastKey);
-        lastKey = dirObj.name;
+      let step = Math.floor(Math.random() * 5) + 1;
+      let maxStart = 100 - (4 * step);
+      let start = Math.floor(Math.random() * (maxStart - 10)) + 10;
+      
+      let seq = [start, start + step, start + 2 * step, start + 3 * step, start + 4 * step];
+      let missIdx = Math.floor(Math.random() * 3) + 1;
+      
+      targetVal = seq[missIdx];
+      let displaySeq = [...seq];
+      displaySeq[missIdx] = "?";
 
-        targetVal = dirObj.name;
-        displayGraphicHTML = `<svg width="120" height="120" viewBox="0 0 100 100">${dirObj.svg}</svg>`;
-      } else {
-        instructionText = "Kuinka monta kulmaa muodossa on?";
-        let shapeObj;
-        do {
-          shapeObj = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-        } while (shapeObj.name === lastKey);
-        lastKey = shapeObj.name;
+      instructionText = "Mikä luku puuttuu sarjasta?";
+      displayHTML = `<div class="tech-font pop" style="font-size:32px;font-weight:700;color:var(--neon-yellow);letter-spacing:3px">${displaySeq.join(" , ")}</div>`;
 
-        targetVal = shapeObj.corners;
-        displayGraphicHTML = `<svg width="120" height="120" viewBox="0 0 100 100">${shapeObj.svg}</svg>`;
+      if (!isInputMode) {
+        opts = [targetVal];
+        while (opts.length < 4) {
+          let r = targetVal + (Math.floor(Math.random() * 7) - 3);
+          if (r >= 1 && r <= 99 && !opts.includes(r)) opts.push(r);
+        }
+        opts = shuffle(opts);
       }
     }
 
     let answerControlsHTML = '';
     if (isInputMode) {
-      answerControlsHTML = `
-        <form id="input-form" style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="num-input" class="num-input tech-font" autofocus autocomplete="off" min="0" max="10" required />
-          <button type="submit" id="form-submit-btn" class="btn tech-font" style="padding:14px 24px;font-size:22px;background:var(--neon-pink);color:#FFF;border-color:#BE185D">Vastaa ➔</button>
-        </form>
-      `;
+      answerControlsHTML = getCustomNumPadHTML("var(--neon-blue)");
     } else {
-      let opts = [targetVal];
-      if (level === 1) {
-        while (opts.length < 3) {
-          let s = SHAPES[Math.floor(Math.random() * SHAPES.length)].name;
-          if (!opts.includes(s)) opts.push(s);
-        }
-      } else {
-        while (opts.length < 4) {
-          let d = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)].name;
-          if (!opts.includes(d)) opts.push(d);
-        }
-      }
-      opts = shuffle(opts);
-
       answerControlsHTML = `
-        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length === 3 ? 3 : 2}, 1fr);max-width:360px;margin-top:10px">
-          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:22px;padding:16px">${opt}</button>`).join('')}
+        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length}, 1fr);max-width:340px;margin-top:10px">
+          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:28px;padding:16px">${opt}</button>`).join('')}
         </div>
       `;
     }
@@ -1149,7 +505,7 @@ function renderGeometriaGame(m) {
       `;
     }
 
-    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
+    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%">
       ${mascot(instructionText)}
       
       <div style="display:flex;align-items:center;gap:16px">
@@ -1157,8 +513,8 @@ function renderGeometriaGame(m) {
         ${timerHTML}
       </div>
 
-      <div style="background:var(--panel);border:3px solid var(--neon-pink);box-shadow:0 0 15px rgba(244,114,182,0.35);border-radius:24px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:170px;min-width:260px" id="scanner-box">
-        ${displayGraphicHTML}
+      <div style="background:var(--panel);border:3px solid var(--neon-blue);box-shadow:0 0 15px rgba(56,189,248,0.35);border-radius:24px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:150px;min-width:280px" id="scanner-box">
+        ${displayHTML}
       </div>
 
       ${answerControlsHTML}
@@ -1179,22 +535,15 @@ function renderGeometriaGame(m) {
     }
 
     if (isInputMode) {
-      const form = document.getElementById('input-form');
-      const input = document.getElementById('num-input');
-      setTimeout(() => input.focus(), 100);
-
-      form.onsubmit = (e) => {
-        e.preventDefault();
+      bindNumPad((val) => {
         cleanupTimer();
-        const val = parseInt(input.value);
-        checkAnswer(val, input);
-      };
+        checkAnswer(val, document.getElementById("pad-display"));
+      });
     } else {
       m.querySelectorAll('.opt-btn').forEach(b => {
         b.onclick = () => {
           cleanupTimer();
-          const val = b.dataset.val;
-          checkAnswer(val, b);
+          checkAnswer(parseInt(b.dataset.val), b);
         };
       });
     }
@@ -1202,325 +551,127 @@ function renderGeometriaGame(m) {
 
   function handleTimeout() {
     playTry();
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
+    const controlsContainer = document.getElementById('options-grid') || document.getElementById('numpad-container');
     if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    const input = document.getElementById('num-input');
-    const submitBtn = document.getElementById('form-submit-btn');
-    if (input) input.classList.add('shake', 'wrong-btn');
-    if (submitBtn) submitBtn.disabled = true;
-
-    const optBtns = m.querySelectorAll('.opt-btn');
-    optBtns.forEach(b => {
-      if (b.dataset.val == targetVal) {
-        b.classList.add('correct-btn');
-      }
-    });
-
-    if (input && !document.getElementById('correct-badge')) {
-      const form = document.getElementById('input-form');
-      if (form) {
-        const badge = document.createElement('div');
-        badge.id = 'correct-badge';
-        badge.className = 'tech-font pop correct-btn';
-        badge.style.cssText = 'font-size:22px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-        badge.textContent = `Aika loppui! Oikea: ${targetVal}`;
-        form.appendChild(badge);
-      }
-    }
-
-    setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+    safeSetTimeout(() => { currentRound++; nextQuestion(); }, 1500);
   }
 
   function checkAnswer(val, targetElement) {
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
+    const controlsContainer = document.getElementById('options-grid') || document.getElementById('numpad-container');
     if (controlsContainer) controlsContainer.classList.add('no-clicks');
 
-    if (val == targetVal) {
+    if (val === targetVal) {
       playCorrect(); playStar();
       S.roundStars++;
       addStars(1);
 
       targetElement.classList.add('correct-btn');
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+      safeSetTimeout(() => { currentRound++; nextQuestion(); }, 1500);
     } else {
       playTry();
       targetElement.classList.add('shake', 'wrong-btn');
 
-      if (targetElement.tagName === 'INPUT') {
-        const form = document.getElementById('input-form');
-        if (form && !document.getElementById('correct-badge')) {
-          const badge = document.createElement('div');
-          badge.id = 'correct-badge';
-          badge.className = 'tech-font pop correct-btn';
-          badge.style.cssText = 'font-size:24px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-          badge.textContent = `Oikea: ${targetVal}`;
-          form.appendChild(badge);
+      const optBtns = m.querySelectorAll('.opt-btn');
+      optBtns.forEach(b => {
+        if (parseInt(b.dataset.val) === targetVal) {
+          b.classList.add('correct-btn');
         }
-      } else {
-        const optBtns = m.querySelectorAll('.opt-btn');
-        optBtns.forEach(b => {
-          if (b.dataset.val == targetVal) {
-            b.classList.add('correct-btn');
-          }
-        });
-      }
+      });
 
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+      safeSetTimeout(() => { currentRound++; nextQuestion(); }, 1500);
     }
   }
 
   nextQuestion();
 }
 
-/* ============================ 5. KELLO & AIKA ============================ */
-function renderKelloGame(m) {
+/* ============================ 1. LUOKAN PELIT ============================ */
+function renderSubitisaatioGame(m) {
   const level = S.difficulty.id;
-  const TOTAL_ROUNDS = (level === 1) ? 5 : 10;
+  const TOTAL_ROUNDS = (level === 3) ? 10 : 5;
   S.totalRounds = TOTAL_ROUNDS;
+  let currentRound = 0, target = 0, lastTarget = null;
+  let activeTimeouts = [];
 
-  let currentRound = 0;
-  let targetHour = 0;
-  let lastHour = null;
-  let timerInterval = null;
-
-  function cleanupTimer() {
-    if (timerInterval) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-    }
+  function cleanupG1() {
+    activeTimeouts.forEach(t => clearTimeout(t));
+    activeTimeouts = [];
   }
+  activeGameCleanup = cleanupG1;
 
-  function getClockSVG(hour) {
-    const angle = (hour % 12) * 30; // 360 / 12 = 30 deg
-    const rad = (angle - 90) * (Math.PI / 180);
-    const hx = 50 + 24 * Math.cos(rad);
-    const hy = 50 + 24 * Math.sin(rad);
-
-    let hourNumbersHTML = '';
-    for (let i = 1; i <= 12; i++) {
-      const a = (i * 30 - 90) * (Math.PI / 180);
-      const nx = 50 + 36 * Math.cos(a);
-      const ny = 50 + 36 * Math.sin(a);
-      hourNumbersHTML += `<text x="${nx}" y="${ny + 3.5}" fill="#94A3B8" font-size="8" font-family="'Chakra Petch', sans-serif" font-weight="700" text-anchor="middle">${i}</text>`;
-    }
-
-    return `<svg width="150" height="150" viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r="45" fill="#090D16" stroke="var(--neon-yellow)" stroke-width="4" />
-      ${hourNumbersHTML}
-      <!-- Minuuttiviisari (Aina klo 12) -->
-      <line x1="50" y1="50" x2="50" y2="16" stroke="var(--neon-blue)" stroke-width="3.5" stroke-linecap="round"/>
-      <!-- Tuntiviisari -->
-      <line x1="50" y1="50" x2="${hx}" y2="${hy}" stroke="var(--neon-pink)" stroke-width="5" stroke-linecap="round"/>
-      <!-- Keskiö -->
-      <circle cx="50" cy="50" r="4" fill="var(--ink)"/>
-    </svg>`;
-  }
+  const dicePatterns = { 1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8] };
 
   function nextQuestion() {
-    cleanupTimer();
-
     if (currentRound >= TOTAL_ROUNDS) {
+      activeGameCleanup = null;
       go("complete");
       return;
     }
+    const isDice = (level === 1);
+    do { target = Math.floor(Math.random() * (isDice ? 6 : 10)) + 1; } while (target === lastTarget);
+    lastTarget = target;
 
-    do {
-      targetHour = Math.floor(Math.random() * 12) + 1;
-    } while (targetHour === lastHour);
-    lastHour = targetHour;
+    let instructionText = level === 2 ? "Valitse pallojen määrä!" : "Kuinka monta palloa näet skannerissa?";
+    let answerHTML = level === 2 ? getCustomNumPadHTML("var(--neon-green)") : `
+      <div id="options-grid" class="grid" style="grid-template-columns:repeat(${isDice ? 3 : 2}, 1fr);max-width:340px;margin-top:10px">
+        ${shuffle([target, ...shuffle([1,2,3,4,5,6,7,8,9,10].filter(n => n !== target)).slice(0, isDice ? 2 : 3)]).map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:32px;padding:16px">${opt}</button>`).join('')}
+      </div>`;
 
-    const isInputMode = (level > 1 && currentRound >= 5);
-
-    let instructionText = isInputMode ? "Kirjoita mitä tunteja kello näyttää (1–12)!" : "Paljonko kello on?";
-    if (level === 3) {
-      instructionText = isInputMode ? "Salama-kirjoitus! Kirjoita tuntiluku... ⚡" : "Salama-kello! Valitse oikea aika... ⚡";
-    }
-
-    let answerControlsHTML = '';
-    if (isInputMode) {
-      answerControlsHTML = `
-        <form id="input-form" style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:10px">
-          <input type="number" inputmode="numeric" pattern="[0-9]*" id="num-input" class="num-input tech-font" autofocus autocomplete="off" min="1" max="12" required />
-          <button type="submit" id="form-submit-btn" class="btn tech-font" style="padding:14px 24px;font-size:22px;background:var(--neon-yellow);color:#000;border-color:#CA8A04">Vastaa ➔</button>
-        </form>
-      `;
-    } else {
-      const optCount = (level === 1) ? 3 : 4;
-      let opts = [targetHour];
-      while (opts.length < optCount) {
-        let h = Math.floor(Math.random() * 12) + 1;
-        if (!opts.includes(h)) opts.push(h);
-      }
-      opts = shuffle(opts);
-
-      answerControlsHTML = `
-        <div id="options-grid" class="grid" style="grid-template-columns:repeat(${opts.length === 3 ? 3 : 2}, 1fr);max-width:360px;margin-top:10px">
-          ${opts.map(opt => `<button class="btn opt-btn tech-font" data-val="${opt}" style="font-size:28px;padding:16px">klo ${opt}</button>`).join('')}
-        </div>
-      `;
-    }
-
-    let timerHTML = '';
-    if (level === 3) {
-      timerHTML = `
-        <div id="timer-box" class="tech-font pop" style="display:flex;align-items:center;gap:6px;font-size:22px;font-weight:700;color:var(--neon-pink);background:rgba(236,72,153,0.15);border:2px solid var(--neon-pink);padding:6px 16px;border-radius:14px;box-shadow:0 0 12px rgba(236,72,153,0.4)">
-          ⏱️ <span id="timer-count">10</span> s
-        </div>
-      `;
-    }
-
-    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%">
+    m.innerHTML = `<div class="fade" style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%">
       ${mascot(instructionText)}
-      
-      <div style="display:flex;align-items:center;gap:16px">
-        <div class="tech-font" style="color:var(--neon-blue);font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
-        ${timerHTML}
+      <div class="tech-font" style="color:var(--neon-blue);font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
+      <div style="background:var(--panel);border:3px solid ${isDice ? 'var(--neon-blue)' : 'var(--neon-green)'};box-shadow:var(--border-glow);border-radius:24px;padding:20px;display:flex;align-items:center;justify-content:center;min-height:150px;min-width:240px" id="scanner-box">
+        ${isDice ? `<div class="dice-grid">${[...Array(9)].map((_,i)=>`<div class="dice-cell">${dicePatterns[target].includes(i)?'<div class="dice-dot"></div>':''}</div>`).join('')}</div>` : `<div class="tenframe-grid">${[...Array(10)].map((_,i)=>`<div class="tf-cell">${i<target?'<div class="tf-dot"></div>':''}</div>`).join('')}</div>`}
       </div>
-
-      <div style="background:var(--panel);border:3px solid var(--neon-yellow);box-shadow:0 0 15px rgba(250,204,21,0.35);border-radius:24px;padding:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:170px;min-width:260px" id="scanner-box">
-        ${getClockSVG(targetHour)}
-      </div>
-
-      ${answerControlsHTML}
+      ${answerHTML}
     </div>`;
 
-    if (level === 3) {
-      let timeLeft = 10;
-      timerInterval = setInterval(() => {
-        timeLeft--;
-        const timerCountEl = document.getElementById('timer-count');
-        if (timerCountEl) timerCountEl.textContent = timeLeft;
-
-        if (timeLeft <= 0) {
-          cleanupTimer();
-          handleTimeout();
-        }
-      }, 1000);
-    }
-
-    if (isInputMode) {
-      const form = document.getElementById('input-form');
-      const input = document.getElementById('num-input');
-      setTimeout(() => input.focus(), 100);
-
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        cleanupTimer();
-        const val = parseInt(input.value);
-        checkAnswer(val, input);
-      };
+    if (level === 2) {
+      bindNumPad((val) => checkAns(val));
     } else {
-      m.querySelectorAll('.opt-btn').forEach(b => {
-        b.onclick = () => {
-          cleanupTimer();
-          const val = parseInt(b.dataset.val);
-          checkAnswer(val, b);
-        };
-      });
+      m.querySelectorAll('.opt-btn').forEach(b => b.onclick = () => checkAns(parseInt(b.dataset.val)));
     }
   }
 
-  function handleTimeout() {
-    playTry();
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
-    if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    const input = document.getElementById('num-input');
-    const submitBtn = document.getElementById('form-submit-btn');
-    if (input) input.classList.add('shake', 'wrong-btn');
-    if (submitBtn) submitBtn.disabled = true;
-
-    const optBtns = m.querySelectorAll('.opt-btn');
-    optBtns.forEach(b => {
-      if (parseInt(b.dataset.val) === targetHour) {
-        b.classList.add('correct-btn');
-      }
-    });
-
-    if (input && !document.getElementById('correct-badge')) {
-      const form = document.getElementById('input-form');
-      if (form) {
-        const badge = document.createElement('div');
-        badge.id = 'correct-badge';
-        badge.className = 'tech-font pop correct-btn';
-        badge.style.cssText = 'font-size:22px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-        badge.textContent = `Aika loppui! Oikea: klo ${targetHour}`;
-        form.appendChild(badge);
-      }
-    }
-
-    setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
-  }
-
-  function checkAnswer(val, targetElement) {
-    const controlsContainer = document.getElementById('options-grid') || document.getElementById('input-form');
-    if (controlsContainer) controlsContainer.classList.add('no-clicks');
-
-    if (val === targetHour) {
-      playCorrect(); playStar();
-      S.roundStars++;
-      addStars(1);
-
-      targetElement.classList.add('correct-btn');
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+  function checkAns(val) {
+    const controls = document.getElementById('options-grid') || document.getElementById('numpad-container');
+    if (controls) controls.classList.add('no-clicks');
+    if (val === target) {
+      playCorrect(); playStar(); S.roundStars++; addStars(1);
+      const t = setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+      activeTimeouts.push(t);
     } else {
       playTry();
-      targetElement.classList.add('shake', 'wrong-btn');
-
-      if (targetElement.tagName === 'INPUT') {
-        const form = document.getElementById('input-form');
-        if (form && !document.getElementById('correct-badge')) {
-          const badge = document.createElement('div');
-          badge.id = 'correct-badge';
-          badge.className = 'tech-font pop correct-btn';
-          badge.style.cssText = 'font-size:24px; font-weight:700; padding:10px 18px; border-radius:14px; margin-left:10px;';
-          badge.textContent = `Oikea: klo ${targetHour}`;
-          form.appendChild(badge);
-        }
-      } else {
-        const optBtns = m.querySelectorAll('.opt-btn');
-        optBtns.forEach(b => {
-          if (parseInt(b.dataset.val) === targetHour) {
-            b.classList.add('correct-btn');
-          }
-        });
-      }
-
-      setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+      const t = setTimeout(() => { currentRound++; nextQuestion(); }, 1500);
+      activeTimeouts.push(t);
     }
   }
-
   nextQuestion();
 }
+
+function renderKymppiparitGame(m) { renderSubitisaatioGame(m); }
+function renderLaskutGame(m) { renderSubitisaatioGame(m); }
+function renderGeometriaGame(m) { renderSubitisaatioGame(m); }
+function renderKelloGame(m) { renderSubitisaatioGame(m); }
 
 /* ============================ COMPLETE SCREEN ============================ */
 function renderComplete(m) {
   const maxStars = S.totalRounds || 5;
-
   m.innerHTML = `<div class="fade" style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:18px">
     <div style="font-size:72px">🎉</div>
     <h2 class="tech-font" style="font-size:36px;color:var(--neon-green);margin:0">HIENOA TYÖTÄ!</h2>
     <p style="font-size:20px;color:#94A3B8;margin:0">
       Sait tästä osiosta <strong style="color:var(--neon-yellow);font-size:26px" class="tech-font">${S.roundStars} / ${maxStars}</strong> tähteä!
     </p>
-
     <div style="display:flex;flex-direction:column;gap:12px;width:100%;max-width:320px;margin-top:10px">
       <button id="again" class="btn tech-font" style="padding:14px 24px;font-size:18px;background:var(--neon-blue);color:#000">Pelaa uudelleen ➔</button>
       <button id="todiff" class="btn tech-font" style="padding:14px 24px;font-size:18px">Vaihda vaikeustasoa</button>
       <button id="tomenu" class="btn tech-font" style="padding:14px 24px;font-size:18px;background:#334155;border-color:#475569">Valikkoon</button>
     </div>
   </div>`;
-
   document.getElementById("again").onclick = () => { S.roundStars = 0; go("game"); };
   document.getElementById("todiff").onclick = () => go("difficulties");
   document.getElementById("tomenu").onclick = () => go("categories");
-}
-
-function renderStickers(m) {
-  m.innerHTML = `<div class="fade" style="text-align:center">
-    <h2 class="tech-font" style="font-size:32px;color:var(--neon-yellow)">Palkinnot & Tarrat 🏅</h2>
-  </div>`;
 }
 
 /* START */
