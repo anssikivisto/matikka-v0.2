@@ -148,7 +148,7 @@ function bindNumPad(onSubmit) {
   });
 
   if (clearBtn) {
-    clearBtn.onclick = () => { val = val.slice(0, -1); if (display) display.textContent = val; }; // Aito Backspace
+    clearBtn.onclick = () => { val = val.slice(0, -1); if (display) display.textContent = val; }; 
   }
   if (submitBtn) { submitBtn.onclick = () => { if (val !== "") onSubmit(parseInt(val)); }; }
 }
@@ -197,7 +197,7 @@ function saveProg() { localStorage.setItem(PKEY, JSON.stringify(prog)); }
 function addStars(n) { prog.stars += n; saveProg(); renderHeader(); }
 
 /* ============================ STATE & NAVIGATION ============================ */
-const S = { screen: "menu", grade: null, category: null, difficulty: null, roundStars: 0, totalRounds: 10, newMedal: null };
+const S = { screen: "menu", grade: null, category: null, difficulty: null, specificTable: null, roundStars: 0, totalRounds: 10, newMedal: null };
 const root = document.getElementById("root");
 
 let activeGameCleanup = null;
@@ -217,13 +217,13 @@ function safeSetTimeout(fn, delay) {
 
 function go(screen) { cleanupGame(); S.screen = screen; render(); }
 function selectGrade(g) { S.grade = g; go("categories"); }
-function selectCategory(cat) { S.category = cat; go("difficulties"); }
-function selectDifficulty(diff) { S.difficulty = diff; S.roundStars = 0; go("game"); }
+function selectCategory(cat) { S.category = cat; S.specificTable = null; go("difficulties"); }
+function selectDifficulty(diff) { S.difficulty = diff; S.specificTable = null; S.roundStars = 0; go("game"); }
 function handleBack() {
   if (S.screen === "categories") go("menu");
   else if (S.screen === "difficulties") go("categories");
   else if (S.screen === "game") go("difficulties");
-  else if (S.screen === "complete") go("categories");
+  else if (S.screen === "complete") go("difficulties");
   else if (S.screen === "stickers") go("menu");
 }
 function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -302,17 +302,43 @@ function renderCategories(m) {
 }
 
 function renderDifficulties(m) {
-  m.innerHTML = `<div class="fade" style="width:100%;max-width:600px">
+  let extraHTML = "";
+  if (S.category.id === "g2_kerto") {
+    extraHTML = `
+      <div style="margin-top:32px; border-top: 2px solid #334155; padding-top:24px; width:100%">
+        <h3 class="tech-font" style="color:var(--neon-purple);margin:0 0 16px 0;text-align:center">Täsmäharjoittelu (Syötä vastaus itse)</h3>
+        <div class="grid" style="grid-template-columns:repeat(4, 1fr);gap:12px">
+          ${[2,4,5,10].map(t => `<button class="btn table-btn tech-font" data-t="${t}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:28px;padding:16px 8px;border-color:var(--neon-purple);color:var(--neon-yellow)">${t}<br><span style="font-size:12px;color:#94A3B8;line-height:1">kertotaulu</span></button>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  m.innerHTML = `<div class="fade" style="width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center">
     ${mascot(`Valitse vaikeustaso aiheelle: <br><strong style="color:var(--neon-yellow)">${S.category.title}</strong>`)}
-    <div class="grid" style="grid-template-columns:1fr;margin-top:20px">
+    <div class="grid" style="grid-template-columns:1fr;margin-top:20px;width:100%">
       ${DIFFICULTIES.map(diff => `
         <button class="btn diff-btn" data-id="${diff.id}" style="display:flex;align-items:center;gap:18px;padding:22px;text-align:left;border-color:${diff.color}">
           <span style="font-size:36px;flex-shrink:0">${diff.emoji}</span>
           <div style="display:flex;flex-direction:column"><span class="tech-font" style="font-size:24px;color:${diff.color}">${diff.label}</span><span style="color:#94A3B8;font-size:14px;margin-top:2px">${diff.desc}</span></div>
         </button>`).join("")}
     </div>
+    ${extraHTML}
   </div>`;
+  
   m.querySelectorAll(".diff-btn").forEach(b => b.onclick = () => selectDifficulty(DIFFICULTIES.find(d => d.id === parseInt(b.dataset.id))));
+  
+  if (S.category.id === "g2_kerto") {
+    m.querySelectorAll(".table-btn").forEach(b => {
+      b.onclick = () => {
+        S.specificTable = parseInt(b.dataset.t);
+        // Luodaan valetaso tarroja ja moottoria varten
+        S.difficulty = { id: 4, label: S.specificTable + " kertotaulu (Täsmä)", color: "var(--neon-purple)" };
+        S.roundStars = 0;
+        go("game");
+      };
+    });
+  }
 }
 
 function renderPlaceholderGame(m) {
@@ -337,6 +363,7 @@ function renderGame(m) {
   } else if (S.grade === 2) {
     if (S.category.id === "g2_luvut") renderG2LuvutGame(m);
     else if (S.category.id === "g2_laskut") renderG2LaskutGame(m);
+    else if (S.category.id === "g2_kerto") renderG2KertoGame(m);
     else renderPlaceholderGame(m);
   }
 }
@@ -357,9 +384,12 @@ function runGame(m, generateFn) {
       if (passed) {
         prog.completions[level] = (prog.completions[level] || 0) + 1;
         let c = prog.completions[level];
-        if (c === 5) S.newMedal = "Pronssimitali 🥉";
-        if (c === 10) S.newMedal = "Hopeamitali 🥈";
-        if (c === 15) S.newMedal = "Kultamitali 🥇";
+        // Mitalit vain tasoille 1-3 (Täsmäharjoittelusta, eli taso 4, ei tule mitaleita, vain tähtiä!)
+        if (level >= 1 && level <= 3) {
+          if (c === 5) S.newMedal = "Pronssimitali 🥉";
+          if (c === 10) S.newMedal = "Hopeamitali 🥈";
+          if (c === 15) S.newMedal = "Kultamitali 🥇";
+        }
         saveProg();
       }
       go("complete"); 
@@ -390,7 +420,7 @@ function runGame(m, generateFn) {
         <div class="tech-font" style="color:${q.accentColor || 'var(--neon-blue)'};font-weight:700">Tehtävä ${currentRound + 1} / ${TOTAL_ROUNDS}</div>
         ${timerHTML}
       </div>
-      <div style="background:var(--panel);border:3px solid ${q.accentColor || 'var(--neon-blue)'};border-radius:24px;padding:${q.padding || '20px'};display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:150px;min-width:280px" id="scanner-box">
+      <div style="background:var(--panel);border:3px solid ${q.accentColor || 'var(--neon-blue)'};border-radius:24px;padding:${q.padding || '20px'};display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:150px;min-width:280px;width:100%;max-width:340px" id="scanner-box">
         ${q.displayHTML}
       </div>
       ${answerControlsHTML}
@@ -469,6 +499,91 @@ function runGame(m, generateFn) {
 }
 
 /* ============================ 2. LUOKAN PELIT ============================ */
+
+function renderG2KertoGame(m) {
+  runGame(m, (round, level) => {
+    
+    // TÄSMÄHARJOITTELU (Taso 4 erikoiskäsittely)
+    if (S.specificTable !== null) {
+      let a = S.specificTable;
+      let b = Math.floor(Math.random() * 10) + 1;
+      
+      // Satunnaisesti vaihdetaan tekijöiden paikkaa (esim. 5 * 2 tai 2 * 5)
+      if (Math.random() < 0.5) [a, b] = [b, a];
+      
+      let target = a * b;
+      
+      return {
+        targetVal: target,
+        instructionText: `Harjoitellaan ${S.specificTable} kertotaulua!`,
+        displayHTML: `<div style="font-size:54px;letter-spacing:2px;" class="tech-font">${a} &middot; ${b} = <span style="color:var(--neon-yellow)">?</span></div>`,
+        opts: [],
+        isInputMode: true, // Pakotetaan NumPad
+        accentColor: "var(--neon-purple)",
+        padding: "30px"
+      };
+    }
+
+    // NORMAALIT VAIKEUSTASOT (1-3)
+    const isFractions = Math.random() < 0.25;
+    let target, instr, displayHTML, accent;
+    let opts = [];
+
+    if (isFractions) {
+      const val = (Math.floor(Math.random() * 10) + 1) * 2;
+      target = val / 2;
+      instr = "Laske puolikas!";
+      displayHTML = `<div class="tech-font" style="font-size:32px;text-align:center;color:var(--ink)">Puolet luvusta <br><span style="color:var(--neon-blue);font-size:54px">${val}</span></div>`;
+      accent = "var(--neon-blue)";
+      opts = [target, target+1, target-1, target+2, target-2].filter(x => x>0);
+    } else {
+      const tables = level === 1 ? [2, 5, 10] : [2, 4, 5, 10];
+      const a = tables[Math.floor(Math.random() * tables.length)];
+      const b = Math.floor(Math.random() * 10) + 1;
+      target = a * b;
+      instr = "Laske kertolasku!";
+      accent = "var(--neon-purple)";
+
+      if (level === 1 && a <= 5 && b <= 5 && Math.random() < 0.5) {
+        displayHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:12px;width:100%">
+          <div style="font-size:36px;letter-spacing:2px" class="tech-font">${a} &middot; ${b} = <span style="color:var(--neon-yellow)">?</span></div>
+          <div style="display:grid; grid-template-columns:repeat(${b}, 1fr); gap:6px; background:#090D16; padding:12px; border-radius:12px; border:2px dashed var(--neon-purple); justify-items:center; width:100%; max-width:200px">
+            ${Array(a*b).fill(`<div style="width:20px;height:20px;background:var(--neon-purple);border-radius:50%;box-shadow:0 0 8px var(--neon-purple)"></div>`).join('')}
+          </div>
+        </div>`;
+      } else {
+        displayHTML = `<div style="font-size:54px;letter-spacing:2px;" class="tech-font">${a} &middot; ${b} = <span style="color:var(--neon-yellow)">?</span></div>`;
+      }
+
+      let dist = [target + a, target - a, target + 1, target - 1, target + 10, target - 10];
+      if (a === 10) dist = [target + 10, target - 10, target + 5, target - 5];
+      if (a === 5) dist = [target + 5, target - 5, target + 10, target - 10];
+      opts = [target, ...dist].filter(x => x > 0 && x !== target);
+    }
+
+    let finalOpts = [target];
+    opts = shuffle(opts);
+    while (finalOpts.length < 4 && opts.length > 0) {
+      let n = opts.pop();
+      if (!finalOpts.includes(n)) finalOpts.push(n);
+    }
+    while (finalOpts.length < 4) {
+      let n = target + Math.floor(Math.random() * 10) - 5;
+      if (n > 0 && !finalOpts.includes(n)) finalOpts.push(n);
+    }
+
+    return {
+      targetVal: target,
+      instructionText: instr,
+      displayHTML: displayHTML,
+      opts: shuffle(finalOpts),
+      isInputMode: (level > 1 && round >= 5),
+      accentColor: accent,
+      padding: "24px"
+    };
+  });
+}
+
 function renderG2LuvutGame(m) {
   function getBase10VisualHTML(tens, ones) {
     let tHTML = ''; for(let i=0;i<tens;i++) tHTML += `<div style="width:12px;height:48px;background:var(--neon-blue);border-radius:4px;box-shadow:0 0 6px rgba(56,189,248,0.5)"></div>`;
@@ -512,62 +627,90 @@ function renderG2LuvutGame(m) {
 
 function renderG2LaskutGame(m) {
   runGame(m, (round, level) => {
-    let a, b, target, isAdd;
-    isAdd = Math.random() < 0.5;
+    let a, b, c, target, expr, accent, instr;
+    let isAdd = false;
+    
+    const isThreeTerms = level > 1 && Math.random() < 0.4;
 
-    if (level === 1) {
-      if (isAdd) {
-        if (Math.random() < 0.5) {
-          a = Math.floor(Math.random() * 5) + 5; b = Math.floor(Math.random() * 5) + 5;
+    if (isThreeTerms) {
+      target = Math.floor(Math.random() * 20) + 3; 
+      c = Math.floor(Math.random() * 15) + 4; 
+      
+      let op1Add = Math.random() < 0.5;
+      let op2Add = Math.random() < 0.5;
+      let temp; 
+      
+      if (op2Add) {
+        if (target <= c) { 
+          op2Add = false;
+          temp = target + c;
         } else {
-          a = Math.floor(Math.random() * 70) + 10;
-          let maxB = 9 - (a % 10);
-          b = Math.floor(Math.random() * maxB) + 1;
-          if (b < 1) b = 1;
+          temp = target - c;
         }
-        target = a + b;
       } else {
-        if (Math.random() < 0.5) {
-          a = Math.floor(Math.random() * 8) + 11; b = Math.floor(Math.random() * 5) + 4;
-          if (b >= a) b = a - 2;
-        } else {
-          a = Math.floor(Math.random() * 70) + 20;
-          let maxB = a % 10;
-          b = Math.floor(Math.random() * maxB) + 1;
-          if (b < 1 || maxB === 0) b = 10;
-        }
-        target = a - b;
+        temp = target + c; 
       }
+      
+      if (op1Add) {
+        if (temp < 6) { 
+          op1Add = false;
+          b = Math.floor(Math.random() * 20) + 6; 
+          a = temp + b;
+        } else {
+          a = Math.floor(Math.random() * (temp - 3)) + 2; 
+          b = temp - a;
+        }
+      } else {
+        b = Math.floor(Math.random() * 25) + 5; 
+        a = temp + b;
+      }
+
+      expr = `${a} ${op1Add ? '+' : '−'} ${b} ${op2Add ? '+' : '−'} ${c}`;
+      accent = "var(--neon-purple)";
+      instr = "Laske monivaiheinen lasku!";
     } else {
-      if (isAdd) {
-        if (Math.random() < 0.7) { 
-          a = Math.floor(Math.random() * 70) + 15;
-          let minB = 10 - (a % 10); if (minB > 9) minB = 1;
-          b = Math.floor(Math.random() * (10 - minB)) + minB; if (b > 9) b = 9;
+      isAdd = Math.random() < 0.5;
+      if (level === 1) {
+        if (isAdd) {
+          if (Math.random() < 0.5) { a = Math.floor(Math.random() * 5) + 5; b = Math.floor(Math.random() * 5) + 5; } 
+          else { a = Math.floor(Math.random() * 70) + 10; let maxB = 9 - (a % 10); b = Math.floor(Math.random() * maxB) + 1; if (b < 1) b = 1; }
+          target = a + b;
         } else {
-          a = Math.floor(Math.random() * 50) + 15;
-          b = (Math.floor(Math.random() * 3) + 1) * 10; 
+          if (Math.random() < 0.5) { a = Math.floor(Math.random() * 8) + 11; b = Math.floor(Math.random() * 5) + 4; if (b >= a) b = a - 2; } 
+          else { a = Math.floor(Math.random() * 70) + 20; let maxB = a % 10; b = Math.floor(Math.random() * maxB) + 1; if (b < 1 || maxB === 0) b = 10; }
+          target = a - b;
         }
-        target = a + b;
       } else {
-        if (Math.random() < 0.7) {
-          a = Math.floor(Math.random() * 70) + 21;
-          if (a % 10 === 0) a += Math.floor(Math.random() * 5) + 1;
-          let minB = (a % 10) + 1;
-          b = Math.floor(Math.random() * (10 - minB)) + minB; if (b > 9) b = 9;
+        if (isAdd) {
+          if (Math.random() < 0.7) { a = Math.floor(Math.random() * 70) + 15; let minB = 10 - (a % 10); if (minB > 9) minB = 1; b = Math.floor(Math.random() * (10 - minB)) + minB; if (b > 9) b = 9; } 
+          else { a = Math.floor(Math.random() * 50) + 15; b = (Math.floor(Math.random() * 3) + 1) * 10; }
+          target = a + b;
         } else {
-          a = Math.floor(Math.random() * 50) + 45;
-          b = (Math.floor(Math.random() * 3) + 1) * 10;
+          if (Math.random() < 0.7) { a = Math.floor(Math.random() * 70) + 21; if (a % 10 === 0) a += Math.floor(Math.random() * 5) + 1; let minB = (a % 10) + 1; b = Math.floor(Math.random() * (10 - minB)) + minB; if (b > 9) b = 9; } 
+          else { a = Math.floor(Math.random() * 50) + 45; b = (Math.floor(Math.random() * 3) + 1) * 10; }
+          target = a - b;
         }
-        target = a - b;
       }
+      expr = `${a} ${isAdd ? '+' : '−'} ${b}`;
+      accent = isAdd ? "var(--neon-green)" : "var(--neon-pink)";
+      instr = isAdd ? "Laske yhteenlasku!" : "Laske vähennyslasku!";
     }
 
     let opts = [target];
-    let dist = [target + 1, target - 1, target + 10, target - 10, target + 2, target - 2, isAdd ? target - 10 : target + 10, target + 10, target - 10];
-    if (isAdd && a > b) dist.push(a - b);
-    if (!isAdd) dist.push(a + b);
-
+    let dist = [target + 1, target - 1, target + 10, target - 10, target + 2, target - 2];
+    
+    if (!isThreeTerms) {
+        if (isAdd) {
+            dist.push(target - 10, target + 10);
+            if (a > b) dist.push(a - b);
+        } else {
+            dist.push(target + 10, target - 10);
+            dist.push(a + b);
+        }
+    } else {
+        dist.push(target + 5, target - 5);
+    }
+    
     dist = shuffle(dist.filter(x => x > 0 && x !== target));
     while(opts.length < 4) {
       let n = dist.pop();
@@ -579,13 +722,10 @@ function renderG2LaskutGame(m) {
     }
     opts = shuffle(opts);
 
-    const expr = `${a} ${isAdd ? '+' : '−'} ${b}`;
-    const accent = isAdd ? "var(--neon-green)" : "var(--neon-pink)";
-
     return {
       targetVal: target,
-      instructionText: isAdd ? "Laske yhteenlasku!" : "Laske vähennyslasku!",
-      displayHTML: `<div style="font-size:54px;letter-spacing:2px;" class="tech-font">${expr} = <span style="color:var(--neon-yellow)">?</span></div>`,
+      instructionText: instr,
+      displayHTML: `<div style="font-size:${isThreeTerms ? '42px' : '54px'};letter-spacing:2px;text-align:center;" class="tech-font">${expr} = <span style="color:var(--neon-yellow)">?</span></div>`,
       opts: opts,
       isInputMode: (level > 1 && round >= 5),
       accentColor: accent,
