@@ -91,12 +91,26 @@
   }
   .tf-cell { border: 2px dashed #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; }
   .tf-dot { width: 30px; height: 30px; background: radial-gradient(circle at 30% 30%, #4ADE80, #15803D); border-radius: 50%; box-shadow: 0 0 10px var(--neon-green); animation: pop .2s ease-out; }
+  
+  .speak-btn:active { transform: scale(0.85); }
 </style>
 </head>
 <body>
 <div id="root"></div>
 
 <script>
+/* ============================ TTS (PUHEGENERAATTORI) ============================ */
+function speakText(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  let clean = text.replace(/<[^>]*>?/gm, '');
+  clean = clean.replace(/&middot;/g, ' kertaa ').replace(/−/g, ' miinus ').replace(/\+/g, ' plus ').replace(/=/g, ' on ');
+  let u = new SpeechSynthesisUtterance(clean);
+  u.lang = 'fi-FI';
+  u.rate = 0.9;
+  window.speechSynthesis.speak(u);
+}
+
 /* ============================ MASCOT & UI ============================ */
 function getRoboSVG(size = 80) {
   return `<svg class="robo-avatar bounce" width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,9 +129,13 @@ function getRoboSVG(size = 80) {
 }
 
 function mascot(msg) {
+  const cleanMsg = msg ? msg.replace(/<[^>]*>?/gm, '').replace(/'/g, "\\'") : '';
   return `<div style="display:flex;align-items:center;gap:12px;justify-content:center;margin:8px 0">
     ${getRoboSVG(70)}
-    ${msg ? `<div id="mascot-bubble" style="background:#1E293B;border:3px solid var(--neon-blue);box-shadow:var(--border-glow);border-radius:16px;padding:10px 14px;font-weight:600;color:var(--ink);max-width:420px;transition:all 0.3s">${msg}</div>` : ''}
+    ${msg ? `<div id="mascot-bubble" style="display:flex;align-items:center;gap:10px;background:#1E293B;border:3px solid var(--neon-blue);box-shadow:var(--border-glow);border-radius:16px;padding:10px 14px;font-weight:600;color:var(--ink);max-width:420px;transition:all 0.3s">
+      <span>${msg}</span>
+      <button class="speak-btn" onclick="speakText('${cleanMsg}')" style="background:none;border:none;cursor:pointer;font-size:28px;padding:0;filter:drop-shadow(0 0 5px rgba(56,189,248,0.8));transition:transform 0.1s">🔊</button>
+    </div>` : ''}
   </div>`;
 }
 
@@ -209,22 +227,24 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
   const cvs = document.getElementById('draw-canvas');
   const ctx = cvs.getContext('2d');
   
-  // Ns. näkymätön kangas maskin laskemista varten
+  const CSIZE = 260; // Suurennettu piirtoalue
   const offCvs = document.createElement('canvas');
-  offCvs.width = 200; offCvs.height = 200;
+  offCvs.width = CSIZE; offCvs.height = CSIZE;
   const offCtx = offCvs.getContext('2d');
 
-  // Piirretään todella paksu targetti maskiksi
-  offCtx.font = "bold 140px 'Fredoka', sans-serif";
+  // Käytetään erittäin selkeää perusfonttia numeroiden oppimiseen
+  const clearFontStyle = "bold 200px Arial, Helvetica, sans-serif";
+
+  offCtx.font = clearFontStyle;
   offCtx.textAlign = "center";
   offCtx.textBaseline = "middle";
   offCtx.fillStyle = "#FFFFFF";
-  offCtx.fillText(targetNum, 100, 110);
+  offCtx.fillText(targetNum, CSIZE/2, CSIZE/2 + 15);
   offCtx.strokeStyle = "#FFFFFF";
-  offCtx.lineWidth = 25; // Reilu toleranssi
-  offCtx.strokeText(targetNum, 100, 110);
+  offCtx.lineWidth = 35; 
+  offCtx.strokeText(targetNum, CSIZE/2, CSIZE/2 + 15);
 
-  const maskData = offCtx.getImageData(0,0,200,200).data;
+  const maskData = offCtx.getImageData(0,0,CSIZE,CSIZE).data;
   let maskPixels = 0;
   for (let i = 3; i < maskData.length; i += 4) {
      if (maskData[i] > 128) maskPixels++;
@@ -235,17 +255,18 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
   let drawing = false;
 
   function renderCanvas() {
-    ctx.clearRect(0,0,200,200);
+    ctx.clearRect(0,0,CSIZE,CSIZE);
     if (showGuide) {
-      ctx.font = "bold 140px 'Fredoka', sans-serif";
+      ctx.font = clearFontStyle;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillStyle = "#334155"; // Himmeä apuviiva
-      ctx.fillText(targetNum, 100, 110);
+      ctx.fillStyle = "#334155";
+      ctx.fillText(targetNum, CSIZE/2, CSIZE/2 + 15);
     }
     
-    ctx.strokeStyle = "var(--neon-yellow)";
-    ctx.lineWidth = 14;
+    // SUORA VÄRIKOODI (Cyan/Blue), jotta piirtojälki ei muutu mustaksi selaimen oletuksena
+    ctx.strokeStyle = "#38BDF8"; 
+    ctx.lineWidth = 20;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
@@ -265,8 +286,8 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     return {
-      x: (clientX - rect.left) * (200 / rect.width),
-      y: (clientY - rect.top) * (200 / rect.height)
+      x: (clientX - rect.left) * (CSIZE / rect.width),
+      y: (clientY - rect.top) * (CSIZE / rect.height)
     };
   }
 
@@ -293,8 +314,7 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
   document.getElementById('draw-submit').onclick = () => {
      if (strokes.length === 0) { onSubmit(false); return; }
 
-     // Etsitään piirroksen rajat (Bounding box), jotta lapsi saa piirtää mihin vain kankaalla
-     let minX = 200, minY = 200, maxX = 0, maxY = 0;
+     let minX = CSIZE, minY = CSIZE, maxX = 0, maxY = 0;
      strokes.forEach(stroke => stroke.forEach(p => {
         if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
         if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
@@ -302,27 +322,25 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
 
      let w = maxX - minX;
      let h = maxY - minY;
-     if (w < 5 && h < 5) { onSubmit(false); return; } // Vain piste piirretty
+     if (w < 5 && h < 5) { onSubmit(false); return; } 
 
      let cx = minX + w/2;
      let cy = minY + h/2;
 
-     // Luodaan väliaikainen kangas vertailua varten
      const tempCvs = document.createElement('canvas');
-     tempCvs.width = 200; tempCvs.height = 200;
+     tempCvs.width = CSIZE; tempCvs.height = CSIZE;
      const tempCtx = tempCvs.getContext('2d');
 
      tempCtx.strokeStyle = "#FFFFFF";
-     tempCtx.lineWidth = 30; // Paksu jälki antaa paljon anteeksi
+     tempCtx.lineWidth = 40; 
      tempCtx.lineCap = "round"; tempCtx.lineJoin = "round";
 
-     // Skaalataan koon ja sijainnin mukaan
      let scale = 1;
-     if (h > 10) scale = 110 / h; // Vakioidaan kokoa kohti 110px
+     if (h > 10) scale = 160 / h;
      if (scale > 2.5) scale = 2.5;
      if (scale < 0.6) scale = 0.6;
 
-     tempCtx.translate(100, 110);
+     tempCtx.translate(CSIZE/2, CSIZE/2 + 15);
      tempCtx.scale(scale, scale);
      tempCtx.translate(-cx, -cy);
 
@@ -332,7 +350,7 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
        tempCtx.stroke();
      });
 
-     const userData = tempCtx.getImageData(0,0,200,200).data;
+     const userData = tempCtx.getImageData(0,0,CSIZE,CSIZE).data;
      let hitCount = 0;
      let userPixels = 0;
 
@@ -345,8 +363,7 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
 
      let coverage = hitCount / maskPixels;
      let precision = hitCount / userPixels;
-
-     // Helpotetut sallivat raja-arvot ekaluokkalaisille
+     
      let isCorrect = (coverage > 0.35 && precision > 0.3);
      onSubmit(isCorrect);
   };
@@ -354,13 +371,15 @@ function bindDrawingCanvas(targetNum, showGuide, onSubmit) {
 
 /* ============================ DATA STRUCTURE ============================ */
 const CATEGORIES = [
-  { id: "g1_luvut", grade: 1, title: "1. Numerot & Määrät", desc: "Tunnista lukumäärä skannerissa", emoji: "⚡", color: "#38BDF8" },
-  { id: "g1_kympit", grade: 1, title: "2. Kymppiparit", desc: "Täydennä luku kymmeneksi", emoji: "🔟", color: "#4ADE80" },
-  { id: "g1_laskut", grade: 1, title: "3. Yhteen- ja vähennys", desc: "Peruslaskut (0–20)", emoji: "➕", color: "#C084FC" },
-  { id: "g1_geometria", grade: 1, title: "4. Geometria & Muodot", desc: "2D-muodot, lukumäärät ja kulmat", emoji: "📐", color: "#F472B6" },
-  { id: "g1_kello", grade: 1, title: "5. Kello & Aika", desc: "Tasatunnit ja analoginen kello", emoji: "🕒", color: "#FACC15" },
-  { id: "g1_piirto", grade: 1, title: "6. Numeroiden piirtäminen", desc: "Harjoittele numeroiden (0-9) muotoja", emoji: "✍️", color: "#F43F5E" },
+  // 1. Luokan kategoriat (Uudelleen järjestetty, piirtäminen on ensimmäisenä)
+  { id: "g1_piirto", grade: 1, title: "1. Numeroiden piirtäminen", desc: "Harjoittele numeroiden (0-9) muotoja", emoji: "✍️", color: "#F43F5E" },
+  { id: "g1_luvut", grade: 1, title: "2. Numerot & Määrät", desc: "Tunnista lukumäärä skannerissa", emoji: "⚡", color: "#38BDF8" },
+  { id: "g1_kympit", grade: 1, title: "3. Kymppiparit", desc: "Täydennä luku kymmeneksi", emoji: "🔟", color: "#4ADE80" },
+  { id: "g1_laskut", grade: 1, title: "4. Yhteen- ja vähennys", desc: "Peruslaskut (0–20)", emoji: "➕", color: "#C084FC" },
+  { id: "g1_geometria", grade: 1, title: "5. Geometria & Muodot", desc: "2D-muodot, lukumäärät ja kulmat", emoji: "📐", color: "#F472B6" },
+  { id: "g1_kello", grade: 1, title: "6. Kello & Aika", desc: "Tasatunnit ja analoginen kello", emoji: "🕒", color: "#FACC15" },
   
+  // 2. Luokan kategoriat
   { id: "g2_luvut", grade: 2, title: "1. Luvut & Kymmenjärjestelmä", desc: "Lukualue 0–100, kymmenet (K) ja ykköset (Y)", emoji: "💯", color: "#38BDF8" },
   { id: "g2_laskut", grade: 2, title: "2. Yhteen- ja vähennyslasku", desc: "Kymmenylitys ja monivaiheiset laskut", emoji: "➕", color: "#4ADE80" },
   { id: "g2_kerto", grade: 2, title: "3. Kertolasku & Murtoluvut", desc: "Kertotaulut (2, 4, 5, 10) ja puolikkaat", emoji: "✖️", color: "#EC4899" },
@@ -408,6 +427,7 @@ let activeTimeouts = [];
 function cleanupGame() {
   activeTimeouts.forEach(t => clearTimeout(t)); activeTimeouts = [];
   if (typeof activeGameCleanup === "function") { activeGameCleanup(); activeGameCleanup = null; }
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
 }
 
 function safeSetTimeout(fn, delay) {
@@ -514,7 +534,6 @@ function renderDifficulties(m) {
     `;
   }
 
-  // Piirtotehtävässä numpad/monivalinta -kuvaus ei päde samalla tavalla, säädetään tekstiä
   const showCustomDesc = (S.category.id === "g1_piirto");
 
   m.innerHTML = `<div class="fade" style="width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center">
@@ -552,12 +571,12 @@ function renderDifficulties(m) {
 
 function renderGame(m) {
   if (S.grade === 1) {
-    if (S.category.id === "g1_luvut") renderSubitisaatioGame(m);
+    if (S.category.id === "g1_piirto") renderG1PiirtoGame(m);
+    else if (S.category.id === "g1_luvut") renderSubitisaatioGame(m);
     else if (S.category.id === "g1_kympit") renderKymppiparitGame(m);
     else if (S.category.id === "g1_laskut") renderLaskutGame(m);
     else if (S.category.id === "g1_geometria") renderGeometriaGame(m);
     else if (S.category.id === "g1_kello") renderG1KelloGame(m);
-    else if (S.category.id === "g1_piirto") renderG1PiirtoGame(m);
   } else if (S.grade === 2) {
     if (S.category.id === "g2_luvut") renderG2LuvutGame(m);
     else if (S.category.id === "g2_laskut") renderG2LaskutGame(m);
@@ -626,6 +645,8 @@ function runGame(m, generateFn) {
       </div>
       ${answerControlsHTML}
     </div>`;
+    
+    speakText(q.instructionText);
 
     if (q.isInputMode) {
       bindNumPad((val) => { cleanupGame(); checkAnswer(val, document.getElementById("pad-display")); });
@@ -901,10 +922,11 @@ function renderG1PiirtoGame(m) {
       showModel = false;
     }
 
-    let modelHTML = showModel ? `<div style="font-size:54px;font-weight:700;color:var(--neon-purple);margin-bottom:8px;line-height:1;text-shadow:0 0 10px rgba(192, 132, 252, 0.5)" class="tech-font">${targetNum}</div>` : '';
+    // Mallinumero on erittäin selkeällä Arial-perusfontilla oppimisen helpottamiseksi
+    let modelHTML = showModel ? `<div style="font-size:120px;font-weight:700;color:var(--neon-purple);margin-bottom:12px;line-height:1;text-shadow:0 0 15px rgba(192, 132, 252, 0.5); font-family: Arial, Helvetica, sans-serif;">${targetNum}</div>` : '';
 
     return {
-      targetVal: targetNum, // Vain varmuuden vuoksi data-rakenteessa
+      targetVal: targetNum,
       targetNum: targetNum,
       instructionText: instr,
       showGuide: showGuide,
@@ -912,7 +934,7 @@ function renderG1PiirtoGame(m) {
       displayHTML: `
         <div style="display:flex;flex-direction:column;align-items:center;width:100%">
           ${modelHTML}
-          <canvas id="draw-canvas" width="200" height="200" style="background:#090D16; border:3px dashed ${showGuide ? 'var(--neon-blue)' : 'var(--neon-purple)'}; border-radius:16px; touch-action:none;"></canvas>
+          <canvas id="draw-canvas" width="260" height="260" style="background:#090D16; border:3px dashed ${showGuide ? 'var(--neon-blue)' : 'var(--neon-purple)'}; border-radius:24px; touch-action:none;"></canvas>
         </div>
       `,
       customOptionsHTML: `
@@ -921,7 +943,7 @@ function renderG1PiirtoGame(m) {
           <button id="draw-submit" class="btn tech-font" style="flex:1.5; padding:12px; background:var(--neon-green); border-color:#15803D; color:#000; font-size:22px;">Valmis ➔</button>
         </div>
       `,
-      accentColor: "transparent" // Ei ylimääräistä laatikkoa
+      accentColor: "transparent"
     };
   });
 }
